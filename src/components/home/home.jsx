@@ -188,7 +188,7 @@ class Home extends Component {
       <div className={ classes.root }>
         <Card className={ `${classes.card} ${classes.earn}` } onClick={ () => { this.nav(location.pathname+'staking') } }>
           <DetailsIcon className={ `${classes.icon} icon` } />
-          <Typography variant={'h3'} className={ `${classes.title} title` }>Stake</Typography>
+          <Typography variant={'h3'} className={ `${classes.title} title` }>pop up test</Typography>
         </Card>
         {/*<Card className={ `${classes.card} ${classes.zap}` } onClick={ () => { this.nav(location.pathname+'propose') } }>
           <WbIncandescentIcon className={ `${classes.icon} icon` } />

@@ -147,9 +147,15 @@ const styles = theme => ({
     paddingBottom: '20px',
     color: colors.text
   },
+  poolName2: {
+    color: colors.text
+  },
   tokensList: {
     color: colors.darkGray,
     paddingBottom: '20px',
+  },
+  tokensList2: {
+    color: colors.darkGray,
   },
   poolWebsite: {
     color: colors.darkGray,
@@ -201,6 +207,25 @@ class RewardPools extends Component {
     this.setState({open: false})
   }
 
+   forHumans = (seconds) =>  {
+    const levels = [
+      [Math.floor(seconds / 31536000), 'years'],
+      [Math.floor((seconds % 31536000) / 86400), 'days'],
+      [Math.floor(((seconds % 31536000) % 86400) / 3600), 'hours'],
+      [Math.floor((((seconds % 31536000) % 86400) % 3600) / 60), 'minutes'],
+      [Math.floor((((seconds % 31536000) % 86400) % 3600) % 60), 'seconds'],
+    ]
+    let returntext = ''
+  
+    for (var i = 0, max = levels.length; i < max; i++) {
+      if (levels[i][0] === 0) continue
+      returntext +=
+        ' ' + levels[i][0] + ' ' + (levels[i][0] === 1 ? levels[i][1].substr(0, levels[i][1].length - 1) : levels[i][1])
+    }
+  
+    return returntext.trim()
+  }
+
   render() {
     const { classes, t, i18n } = this.props;
     const {
@@ -230,7 +255,6 @@ class RewardPools extends Component {
           </Card>
         </div>
         <div className={ classes.rewardPools }>
-          <Typography variant={ 'h3'} className={ classes.text } noWrap>{t('RewardPools.WhichTokens')}</Typography>
           {
             this.renderRewards()
           }
@@ -260,17 +284,13 @@ class RewardPools extends Component {
     return (<div className={ classes.rewardPoolContainer} key={ rewardPool.id } >
       <Typography variant='h3' className={ classes.poolName }>{ rewardPool.id }</Typography>
       <Typography variant='h5' className={ classes.poolWebsite }><a href={ rewardPool.link } target="_blank">{ rewardPool.website }</a></Typography>
-      <Typography varian='h4' className={ classes.tokensList } align='center'>
-        { rewardPool.tokens.length > 0 && `${t('RewardPools.SupportedTokens')}: ` + tokensList  }
-        { rewardPool.tokens.length == 0 && t('RewardPools.NoSupportedTokens')  }
-      </Typography>
       <Button
         variant="outlined"
         color="secondary"
-        onClick={ () => { if(rewardPool.tokens.length > 0) { this.navigateStake(rewardPool) } } }
+        onClick={ () => { if(rewardPool.tokens.length > 0) {  } } } //open modal here  onClick={ () => { if(rewardPool.tokens.length > 0) { this.navigateStake(rewardPool) } } }
       >
-        <Typography variant={ 'h4'}>{t('RewardPools.Open')}</Typography>
-      
+        <Typography variant={ 'h4'}>{t('RewardPools.Open')}</Typography> 
+       
       </Button>
     </div>)
   }

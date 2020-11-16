@@ -113,10 +113,10 @@ class Store {
       },
       rewardPools: [
         {
-          id: 'xearn / eth UNISWAP LP',
-          name: 'xearn / eth UNISWAP LP',
-          website: 'UNISWAP XRN / ETH',
-          link: 'https://app.uniswap.org/#/add/0x00920fc4b6698e5c7F144C6Ee16cB3ed9d238142/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+          id: 'Click open for pop up', 
+          name: '',
+          website: '',
+          link: '',
           YieldCalculatorLink: "", 
           depositsEnabled: true,
           tokens: [
@@ -133,54 +133,8 @@ class Store {
               balance: 0,
               stakedBalance: 0,
               rewardsAvailable: 0,
-            }
-          ]
-        },
-        {
-          id: 'quiverX / eth UNISWAP LP',
-          name: 'quiverX / eth UNISWAP LP',
-          website: 'UNISWAP QRX / ETH',
-          link: 'https://app.uniswap.org/#/add/0x6e0dade58d2d89ebbe7afc384e3e4f15b70b14d8/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-          YieldCalculatorLink: "", //收益率器地址
-          depositsEnabled: true,
-          tokens: [
-            {
-              id: 'UNI-LP',
-              address: config.qrxuniswaptoken,
-              symbol: 'UNI',
-              abi: config.erc20ABI,
-              decimals: 18,
-              rewardsAddress: config.xearnpooltwo,
-              rewardsABI: config.xearnrewardsabi,
-              rewardsSymbol: 'XRN',
-              decimals: 18,
-              balance: 0,
-              stakedBalance: 0,
-              rewardsAvailable: 0,
-            }
-          ]
-        },
-        {
-          id: 'USDT Pool',
-          name: 'USDT Pool',
-          website: 'xearn.capital',
-          link: 'https://app.uniswap.org/#/add/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/0xCa22d16A50F69cE61093D1f18B21b8b4423b0D6D',
-          YieldCalculatorLink: "https://yieldfarming.yyfi.finance/yyfi/yyfi_dai/", 
-          depositsEnabled: true,
-          tokens: [
-            {
-              id: 'USDT',
-              address: config.usdttoken,
-              symbol: 'USDT',
-              abi: config.erc20ABI,
-              decimals: 6,
-              rewardsAddress: config.xearnpoolthree,
-              rewardsABI: config.xearnrewardsabi,
-              rewardsSymbol: 'XRN',
-              decimals: 6,
-              balance: 0,
-              stakedBalance: 0,
-              rewardsAvailable: 0,
+              rewardsClaimed:0,
+              nextHalving:0
             }
           ]
         },
@@ -325,7 +279,9 @@ class Store {
         async.parallel([
           (callbackInnerInner) => { this._getERC20Balance(web3, token, account, callbackInnerInner) },
           (callbackInnerInner) => { this._getstakedBalance(web3, token, account, callbackInnerInner) },
-          (callbackInnerInner) => { this._getRewardsAvailable(web3, token, account, callbackInnerInner) }
+          (callbackInnerInner) => { this._getRewardsAvailable(web3, token, account, callbackInnerInner) },
+          (callbackInnerInner) => { this._getTotalAccumulatedRewards(web3, token, account, callbackInnerInner) },
+          (callbackInnerInner) => { this._getRewardHalving(web3, token, account, callbackInnerInner) }
         ], (err, data) => {
           if(err) {
             console.log(err)
@@ -335,6 +291,8 @@ class Store {
           token.balance = data[0]
           token.stakedBalance = data[1]
           token.rewardsAvailable = data[2]
+          token.rewardsClaimed = data[3]
+          token.nextHalving = data[4] - (Date.now() / 1000)
 
           callbackInner(null, token)
         })
@@ -456,8 +414,13 @@ class Store {
 
     try {
       var balance = await erc20Contract.methods.balanceOf(account.address).call({ from: account.address });
-      balance = parseFloat(balance)/10**asset.decimals
-      callback(null, parseFloat(balance))
+      let unit = "ether";
+      if(asset.decimals == 6) {
+         unit = "mwei";
+      }
+      balance = web3.utils.fromWei(balance.toString(),unit);
+    //  balance = parseFloat(balance)/10**asset.decimals
+      callback(null, balance)
     } catch(ex) {
       return callback(ex)
     }
@@ -468,8 +431,36 @@ class Store {
 
     try {
       var balance = await erc20Contract.methods.balanceOf(account.address).call({ from: account.address });
-      balance = parseFloat(balance)/10**asset.decimals
-      callback(null, parseFloat(balance))
+      let unit = "ether";
+      if(asset.decimals == 6) {
+        unit = "mwei";
+      }
+      balance = web3.utils.fromWei(balance.toString(),unit);
+      callback(null, balance)
+    } catch(ex) {
+      return callback(ex)
+    }
+  }
+  
+
+  _getRewardHalving = async (web3, asset, account, callback) => {
+    let erc20Contract = new web3.eth.Contract(asset.rewardsABI, asset.rewardsAddress)
+
+    try {
+      const periodFinish = await erc20Contract.methods.periodFinish().call();
+      callback(null, periodFinish)
+    } catch(ex) {
+      return callback(ex)
+    }
+  }
+
+  _getTotalAccumulatedRewards = async (web3, asset, account, callback) => {
+    let erc20Contract = new web3.eth.Contract(asset.rewardsABI, asset.rewardsAddress)
+
+    try {
+      var earned = await erc20Contract.methods.totalAccumulatedReward().call();
+      earned = web3.utils.fromWei(earned.toString(),"ether");
+      callback(null, parseFloat(earned))
     } catch(ex) {
       return callback(ex)
     }

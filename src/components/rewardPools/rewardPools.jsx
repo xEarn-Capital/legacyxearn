@@ -18,6 +18,7 @@ import {
   CONFIGURE_RETURNED,
   GET_BALANCES,
   GET_BALANCES_RETURNED,
+  GET_BALANCES_PERPETUAL,
 } from '../../constants'
 
 const styles = theme => ({
@@ -181,7 +182,7 @@ class RewardPools extends Component {
       loading: !(account && rewardPools),
       account: account,
     }
-    dispatcher.dispatch({ type: GET_BALANCES, content: {} })
+    dispatcher.dispatch({ type: GET_BALANCES_PERPETUAL, content: {} })
   }
 
   componentWillMount() {
@@ -287,7 +288,7 @@ class RewardPools extends Component {
       <Button
         variant="outlined"
         color="secondary"
-        onClick={ () => { if(rewardPool.tokens.length > 0) {  } } } //open modal here  onClick={ () => { if(rewardPool.tokens.length > 0) { this.navigateStake(rewardPool) } } }
+        onClick={ () => { if(rewardPool.tokens.length > 0) { this.navigateStake(rewardPool) } } }//open modal here  onClick={ () => { if(rewardPool.tokens.length > 0) { this.navigateStake(rewardPool) } } }
       >
         <Typography variant={ 'h4'}>{t('RewardPools.Open')}</Typography> 
        

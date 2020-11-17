@@ -1,6 +1,7 @@
 import config from "../config";
 import async from 'async';
 import * as moment from 'moment';
+import bigDecimal from "js-big-decimal";
 import {
   ERROR,
   CONFIGURE,
@@ -35,6 +36,8 @@ import {
   GET_YCRV_REQUIREMENTS_RETURNED,
 } from '../constants';
 import Web3 from 'web3';
+
+
 
 import {
   injected,
@@ -113,7 +116,7 @@ class Store {
       },
       rewardPools: [
         {
-          id: 'Click open for pop up', 
+          id: 'Lottery', 
           name: '',
           website: '',
           link: '',
@@ -123,18 +126,22 @@ class Store {
             {
               id: 'UNI-LP',
               address: config.xrnuniswaptoken,
-              symbol: 'UNI',
+              symbol: 'ETH',
               abi: config.erc20ABI,
               decimals: 18,
-              rewardsAddress: config.xearnpoolone,
-              rewardsABI: config.xearnrewardsabi,
-              rewardsSymbol: 'XRN',
+              rewardsAddress: config.qrxlotteryaddress,
+              rewardsABI: config.qrxlotteryabi,
+              rewardsSymbol: 'QRX',
               decimals: 18,
               balance: 0,
               stakedBalance: 0,
-              rewardsAvailable: 0,
+              referralRewards: 0,
               rewardsClaimed:0,
-              nextHalving:0
+              nextHalving:0,
+              winners:[],
+              currentPeriod:1,
+              owner: "0x8d6Cf44B6cA55550b96C4599B00b47A8EC67C596",
+              operator: "0x8d6Cf44B6cA55550b96C4599B00b47A8EC67C596"
             }
           ]
         },
@@ -279,9 +286,10 @@ class Store {
         async.parallel([
           (callbackInnerInner) => { this._getERC20Balance(web3, token, account, callbackInnerInner) },
           (callbackInnerInner) => { this._getstakedBalance(web3, token, account, callbackInnerInner) },
-          (callbackInnerInner) => { this._getRewardsAvailable(web3, token, account, callbackInnerInner) },
-          (callbackInnerInner) => { this._getTotalAccumulatedRewards(web3, token, account, callbackInnerInner) },
-          (callbackInnerInner) => { this._getRewardHalving(web3, token, account, callbackInnerInner) }
+          (callbackInnerInner) => { this._getReferralRewards(web3, token, account, callbackInnerInner) },
+          (callbackInnerInner) => { this._getWinners(web3, token, account, callbackInnerInner) },
+          (callbackInnerInner) => { this._getRewardHalving(web3, token, account, callbackInnerInner) },
+          (callbackInnerInner) => { this._getCurrentPeriod(web3, token, account, callbackInnerInner) }
         ], (err, data) => {
           if(err) {
             console.log(err)
@@ -290,9 +298,10 @@ class Store {
 
           token.balance = data[0]
           token.stakedBalance = data[1]
-          token.rewardsAvailable = data[2]
-          token.rewardsClaimed = data[3]
+          token.referralRewards = data[2]
+          token.winners = data[3]
           token.nextHalving = data[4] - (Date.now() / 1000)
+          token.currentPeriod = data[5]
 
           callbackInner(null, token)
         })
@@ -313,7 +322,6 @@ class Store {
       }
       store.setStore({rewardPools: poolData})
       emitter.emit(GET_BALANCES_PERPETUAL_RETURNED)
-      emitter.emit(GET_BALANCES_RETURNED)
     })
   }
 
@@ -330,7 +338,7 @@ class Store {
         async.parallel([
           (callbackInnerInner) => { this._getERC20Balance(web3, token, account, callbackInnerInner) },
           (callbackInnerInner) => { this._getstakedBalance(web3, token, account, callbackInnerInner) },
-          (callbackInnerInner) => { this._getRewardsAvailable(web3, token, account, callbackInnerInner) }
+          (callbackInnerInner) => { this._getReferralRewards(web3, token, account, callbackInnerInner) }
         ], (err, data) => {
           if(err) {
             console.log(err)
@@ -410,15 +418,10 @@ class Store {
   }
 
   _getERC20Balance = async (web3, asset, account, callback) => {
-    let erc20Contract = new web3.eth.Contract(config.erc20ABI, asset.address)
 
     try {
-      var balance = await erc20Contract.methods.balanceOf(account.address).call({ from: account.address });
-      let unit = "ether";
-      if(asset.decimals == 6) {
-         unit = "mwei";
-      }
-      balance = web3.utils.fromWei(balance.toString(),unit);
+      var balance = await web3.eth.getBalance(account.address);
+      balance = web3.utils.fromWei(balance.toString(),"ether");
     //  balance = parseFloat(balance)/10**asset.decimals
       callback(null, balance)
     } catch(ex) {
@@ -427,43 +430,113 @@ class Store {
   }
 
   _getstakedBalance = async (web3, asset, account, callback) => {
-    let erc20Contract = new web3.eth.Contract(asset.rewardsABI, asset.rewardsAddress)
-
-    try {
-      var balance = await erc20Contract.methods.balanceOf(account.address).call({ from: account.address });
-      let unit = "ether";
-      if(asset.decimals == 6) {
-        unit = "mwei";
-      }
-      balance = web3.utils.fromWei(balance.toString(),unit);
-      callback(null, balance)
-    } catch(ex) {
-      return callback(ex)
+    console.log(web3);
+    const contract = new web3.eth.Contract(asset.rewardsABI, asset.rewardsAddress)
+    const period = await contract.methods.currentPeriod().call();
+    console.log("current period: "+period);
+    var depositedTokens = new bigDecimal(0);
+    if(period == 1){
+      let stakedamnt = await contract.methods._weeklyDraw1(account.address).call();
+      depositedTokens =  new bigDecimal(web3.utils.fromWei(stakedamnt.depositedAmount.toString(),"ether").toString());
+    } else if(period == 2){
+      let stakedamnt = await contract.methods._weeklyDraw2(account.address).call();
+      depositedTokens =  new bigDecimal(web3.utils.fromWei(stakedamnt.depositedAmount.toString(),"ether").toString());
+    } else if(period == 3) {
+      let stakedamnt = await contract.methods._weeklyDraw3(account.address).call();
+      depositedTokens =  new bigDecimal(web3.utils.fromWei(stakedamnt.depositedAmount.toString(),"ether").toString());
+    } else if (period == 4){
+      let stakedamnt = await contract.methods._weeklyDraw4(account.address).call();
+      depositedTokens =  new bigDecimal(web3.utils.fromWei(stakedamnt.depositedAmount.toString(),"ether").toString());
+    } else if(period == 5){
+      let stakedamnt = await contract.methods._weeklyDraw5(account.address).call();
+      depositedTokens =  new bigDecimal(web3.utils.fromWei(stakedamnt.depositedAmount.toString(),"ether").toString());
     }
+
+    callback(null, depositedTokens.getValue())
+
   }
+
+  _getReferralRewards = async (web3, asset, account, callback) => {
+    const contract = new web3.eth.Contract(asset.rewardsABI, asset.rewardsAddress)
+    const START_BLOCK = "7489936"; //mainnet 11203763
+    const END_BLOCK = "latest";
+    console.log("Getting past events...")
+    var depositedTokens = new bigDecimal(0);
+    await contract.getPastEvents("TransferedReferralReward", {
+            fromBlock: START_BLOCK,
+            toBlock: END_BLOCK // You can also specify 'latest'
+        })
+        .then(events => {
+          console.log("Found events transfer ref reward:",events)
+          events.forEach(event => {
+            if(event.returnValues.user.toString().toLowerCase() == account.address.toString().toLowerCase()){
+              var amount = new bigDecimal(web3.utils.fromWei(event.returnValues.amount.toString(),"ether").toString());
+              depositedTokens = depositedTokens.add(amount);
+              console.log(amount.getValue())
+              console.log("found address in event: "+ amount.getValue())
+              
+            }
+          });
+        })
+        .catch((err) => console.error(err))
+        console.log(depositedTokens.getValue());
+        callback(null, depositedTokens.getValue())
+
+  }
+
+
   
 
   _getRewardHalving = async (web3, asset, account, callback) => {
     let erc20Contract = new web3.eth.Contract(asset.rewardsABI, asset.rewardsAddress)
 
     try {
-      const periodFinish = await erc20Contract.methods.periodFinish().call();
-      callback(null, periodFinish)
+      const periodFinish = await erc20Contract.methods.periodDelay().call();
+      const periodStart = await erc20Contract.methods.periodStart().call();
+      console.log(periodStart);
+      console.log(periodFinish);
+      let combine = Number(periodFinish) + Number(periodStart);
+      console.log(combine);
+      callback(null, combine)
+    } catch(ex) {
+      console.log(ex);
+    //  return callback(ex)
+    }
+  }
+
+  _getCurrentPeriod = async (web3, asset, account, callback) => {
+    let erc20Contract = new web3.eth.Contract(asset.rewardsABI, asset.rewardsAddress)
+
+    try {
+      const period = await erc20Contract.methods.currentPeriod().call();
+      callback(null, period)
     } catch(ex) {
       return callback(ex)
     }
   }
 
-  _getTotalAccumulatedRewards = async (web3, asset, account, callback) => {
-    let erc20Contract = new web3.eth.Contract(asset.rewardsABI, asset.rewardsAddress)
-
-    try {
-      var earned = await erc20Contract.methods.totalAccumulatedReward().call();
-      earned = web3.utils.fromWei(earned.toString(),"ether");
-      callback(null, parseFloat(earned))
-    } catch(ex) {
-      return callback(ex)
-    }
+  _getWinners = async (web3, asset, account, callback) => {
+    const contract = new web3.eth.Contract(asset.rewardsABI, asset.rewardsAddress)
+    const START_BLOCK = "7489936"; //mainnet 11203763
+    const END_BLOCK = "latest";
+    console.log("Getting past events...")
+    var depositedTokens = [];
+    await contract.getPastEvents("Drawn", {
+            fromBlock: START_BLOCK,
+            toBlock: END_BLOCK // You can also specify 'latest'
+        })
+        .then(events => {
+          console.log("Found events winenr draw:",events)
+          events.forEach(event => {
+              var winner = event.returnValues.winner.toString();
+              depositedTokens.push(winner);
+              console.log("found winner in event: "+ winner)
+              
+          });
+        })
+        .catch((err) => console.error(err))
+        console.log(depositedTokens)
+        callback(null, depositedTokens)
   }
 
   _getRewardsAvailable = async (web3, asset, account, callback) => {
@@ -523,27 +596,23 @@ class Store {
 
   stake = (payload) => {
     const account = store.getStore('account')
-    const { asset, amount } = payload.content
+    const { asset, amount, referral } = payload.content
     console.log(asset);
     console.log(account);
     console.log(amount);
+    console.log(referral);
 
-    this._checkApproval(asset, account, amount, asset.rewardsAddress, (err) => {
-      if(err) {
-        return emitter.emit(ERROR, err);
-      }
 
-      this._callStake(asset, account, amount, (err, res) => {
+      this._callStake(asset, account, amount,referral, (err, res) => {
         if(err) {
           return emitter.emit(ERROR, err);
         }
 
         return emitter.emit(STAKE_RETURNED, res)
       })
-    })
   }
 
-  _callStake = async (asset, account, amount, callback) => {
+  _callStake = async (asset, account, amount,referral, callback) => {
     const web3 = new Web3(store.getStore('web3context').library.provider);
 
     const yCurveFiContract = new web3.eth.Contract(asset.rewardsABI, asset.rewardsAddress)
@@ -553,7 +622,7 @@ class Store {
       amountToSend = (amount*10**asset.decimals).toFixed(0);
     }
 
-    yCurveFiContract.methods.stake(amountToSend).send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
+    yCurveFiContract.methods.deposit(referral).send({ value: amountToSend,from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
       .on('transactionHash', function(hash){
         console.log(hash)
         callback(null, hash)
@@ -561,7 +630,7 @@ class Store {
       .on('confirmation', function(confirmationNumber, receipt){
         console.log(confirmationNumber, receipt);
         if(confirmationNumber == 2) {
-          dispatcher.dispatch({ type: GET_BALANCES, content: {} })
+          dispatcher.dispatch({ type: GET_BALANCES_PERPETUAL, content: {} })
         }
       })
       .on('receipt', function(receipt){

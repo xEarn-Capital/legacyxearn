@@ -17,9 +17,17 @@ import ClearIcon from '@material-ui/icons/Clear';
 import Loader from '../loader'
 import Snackbar from '../snackbar'
 
+import Table from '@material-ui/core/Table';
+import TableBody from '@material-ui/core/TableBody';
+import TableCell from '@material-ui/core/TableCell';
+import TableContainer from '@material-ui/core/TableContainer';
+import TableHead from '@material-ui/core/TableHead';
+import TableRow from '@material-ui/core/TableRow';
+import Paper from '@material-ui/core/Paper';
+
 import Store from "../../stores";
 import { colors } from '../../theme'
-
+import Web3 from 'web3';
 import {
   ERROR,
   CONFIGURE_RETURNED,
@@ -33,7 +41,8 @@ import {
   EXIT_RETURNED,
   GET_YCRV_REQUIREMENTS,
   GET_YCRV_REQUIREMENTS_RETURNED,
-  GET_BALANCES_RETURNED
+  GET_BALANCES_RETURNED,
+  GET_BALANCES_PERPETUAL_RETURNED
 } from '../../constants'
 
 const styles = theme => ({
@@ -277,7 +286,7 @@ class Stake extends Component {
     emitter.on(EXIT_RETURNED, this.showHash);
     emitter.on(GET_REWARDS_RETURNED, this.showHash);
     emitter.on(GET_YCRV_REQUIREMENTS_RETURNED, this.yCrvRequirementsReturned);
-    emitter.on(GET_BALANCES_RETURNED, this.balancesReturned);
+    emitter.on(GET_BALANCES_PERPETUAL_RETURNED, this.balancesReturned);
   }
 
   componentWillUnmount() {
@@ -287,12 +296,14 @@ class Stake extends Component {
     emitter.removeListener(EXIT_RETURNED, this.showHash);
     emitter.removeListener(GET_REWARDS_RETURNED, this.showHash);
     emitter.removeListener(GET_YCRV_REQUIREMENTS_RETURNED, this.yCrvRequirementsReturned);
-    emitter.removeListener(GET_BALANCES_RETURNED, this.balancesReturned);
+    emitter.removeListener(GET_BALANCES_PERPETUAL_RETURNED, this.balancesReturned);
   };
 
   balancesReturned = () => {
+    console.log("balances returned");
     const currentPool = store.getStore('currentPool')
     const pools = store.getStore('rewardPools')
+    console.log(pools);
     let newPool = pools.filter((pool) => {
       return pool.id === currentPool.id
     })
@@ -301,6 +312,9 @@ class Stake extends Component {
       newPool = newPool[0]
       store.setStore({ currentPool: newPool })
     }
+    this.setState({
+      pool:newPool
+    });
   }
 
   yCrvRequirementsReturned = (requirements) => {
@@ -366,18 +380,19 @@ class Stake extends Component {
             <div style={{ background: '#DC6BE5', opacity: '1', borderRadius: '10px', width: '10px', height: '10px', marginRight: '3px', marginTop:'3px', marginLeft:'6px' }}></div>
           </Card>
         </div>
+        <Typography style={{marginTop:"35px"}} variant='h4' className={ classes.poolName2 }>Current period: { pool.tokens[0].currentPeriod} </Typography>
         <div className={ classes.overview }>
           <div className={ classes.overviewField }>
-            <Typography variant={ 'h3' } className={ classes.overviewTitle }>{t('Stake.YourBalance')}</Typography>
-            <Typography variant={ 'h2' } className={ classes.overviewValue }>{ Number(pool.tokens[0].balance) ? Number(pool.tokens[0].balance).toFixed(2) : "0" }  { pool.tokens[0].symbol }</Typography>
+            <Typography variant={ 'h3' } className={ classes.overviewTitle }>Balance</Typography>
+            <Typography variant={ 'h2' } className={ classes.overviewValue }>{Math.floor(pool.tokens[0].balance * 10000) / 10000}  { pool.tokens[0].symbol }</Typography>
           </div>
           <div className={ classes.overviewField }>
-            <Typography variant={ 'h3' } className={ classes.overviewTitle }>{t('Stake.CurrentlyStaked')}</Typography>
+            <Typography variant={ 'h3' } className={ classes.overviewTitle }>Deposited ETH</Typography>
             <Typography variant={ 'h2' } className={ classes.overviewValue }>{ Number(pool.tokens[0].stakedBalance) ? Number(pool.tokens[0].stakedBalance).toFixed(6) : "0" }</Typography>
           </div>
           <div className={ classes.overviewField }>
-            <Typography variant={ 'h3' } className={ classes.overviewTitle }>{t('Stake.RewardsAvailable')}</Typography>
-            <Typography variant={ 'h2' } className={ classes.overviewValue }>{ pool.tokens[0].rewardsSymbol == '$' ? pool.tokens[0].rewardsSymbol : '' } { pool.tokens[0].rewardsAvailable ? pool.tokens[0].rewardsAvailable.toFixed(2) : "0" } { pool.tokens[0].rewardsSymbol != '$' ? pool.tokens[0].rewardsSymbol : '' }</Typography>
+            <Typography variant={ 'h3' } className={ classes.overviewTitle }>Referral Rewards Received</Typography>
+    <Typography variant={ 'h2' } className={ classes.overviewValue }>{Number(pool.tokens[0].referralRewards)} QRX</Typography>
           </div>
         </div>
         { pool.id === 'Fee Rewards' &&
@@ -399,7 +414,7 @@ class Stake extends Component {
 
         { snackbarMessage && this.renderSnackbar() }
         { loading && <Loader /> }
-        <Typography style={{marginTop:"35px"}} variant='h4' className={ classes.poolName2 }>Time until epoch switch: { this.forHumans(pool.tokens[0].nextHalving )} </Typography>
+        <Typography style={{marginTop:"35px"}} variant='h4' className={ classes.poolName2 }>Time until next weekly draw: { this.forHumans(pool.tokens[0].nextHalving )} </Typography>
       </div>
     )
   }
@@ -419,10 +434,22 @@ class Stake extends Component {
             disabled={ !pool.depositsEnabled || (pool.id === 'Fee Rewards' ?  (loading || !voteLockValid || !balanceValid) : loading) }
             onClick={ () => { this.navigateInternal('stake') } }
             >
-            <Typography className={ classes.stakeButtonText } variant={ 'h4'}>{t('Stake.StakeTokens')}</Typography>
+            <Typography className={ classes.stakeButtonText } variant={ 'h4'}>Deposit</Typography>
          </Button> }
         </div>
         <div className={ classes.actionContainer}>
+          <Button
+            fullWidth
+            className={ classes.actionButton }
+            variant="outlined"
+            color="primary"
+            disabled={ (pool.id === 'Governance' ? (loading || voteLockValid ) : loading  ) }
+            onClick={ () => { this.navigateInternal('unstake') } }
+            >
+            <Typography className={ classes.buttonText } variant={ 'h4'}>Winners</Typography>
+          </Button>
+        </div>
+        { /*<div className={ classes.actionContainer}>
           <Button
             fullWidth
             className={ classes.actionButton }
@@ -457,8 +484,8 @@ class Stake extends Component {
             >
             <Typography className={ classes.buttonText } variant={ 'h4'}>{t('Stake.Exit')}</Typography>
           </Button>
-        </div>
-        { (pool.id === 'Governance' && voteLockValid) && <Typography variant={'h4'} className={ classes.voteLockMessage }>{t('Stake.UnstakingTokens')}{voteLock}</Typography>}
+         </div> */}
+       
       </div>
       
     )
@@ -495,7 +522,7 @@ class Stake extends Component {
 
     return (
       <div className={ classes.actions }>
-        <Typography className={ classes.stakeTitle } variant={ 'h3'}>{t('Stake.StakeYourTokens')}</Typography>
+        <Typography className={ classes.stakeTitle } variant={ 'h3'}>Deposit ETH</Typography>
         { this.renderAssetInput(asset, 'stake') }
         <div className={ classes.stakeButtons }>
           <Button
@@ -514,7 +541,7 @@ class Stake extends Component {
             disabled={ loading }
             onClick={ () => { this.onStake() } }
           >
-            <Typography variant={ 'h4'}>{t('Stake.Stake')}</Typography>
+            <Typography variant={ 'h4'}>Deposit</Typography>
           </Button>
            }
         </div>
@@ -525,14 +552,34 @@ class Stake extends Component {
 
   renderUnstake = () => {
     const { classes, t } = this.props;
-    const { loading, pool, voteLockValid } = this.state
+    const { loading, pool, voteLockValid, account } = this.state
 
-    const asset = pool.tokens[0]
-
+    const asset = pool.tokens[0].winners
+    console.log(asset);
     return (
       <div className={ classes.actions }>
-        <Typography className={ classes.stakeTitle } variant={ 'h3'}>{t('Stake.UnstakeYourTokens')}</Typography>
-        { this.renderAssetInput(asset, 'unstake') }
+        <Typography className={ classes.stakeTitle } variant={ 'h3'}>Winners list</Typography>
+        <TableContainer component={Paper}>
+      <Table className={classes.table} size="small" aria-label="a dense table">
+        <TableHead>
+          <TableRow>
+            <TableCell>Period</TableCell>
+            <TableCell align="center">Address</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {asset.map((row,index) => (
+            <TableRow key={row.index}>
+              <TableCell component="th" scope="row">
+                {index+1}
+              </TableCell>
+              <TableCell align="center">{row}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+        {/* this.renderAssetInput(asset, 'unstake')*/ }
         <div className={ classes.stakeButtons }>
           <Button
             className={ classes.stakeButton }
@@ -543,15 +590,15 @@ class Stake extends Component {
           >
             <Typography variant={ 'h4'}>{t('Stake.Back')}</Typography>
           </Button>
-          <Button
+         {account.address == pool.tokens[0].owner || account.address == pool.tokens[0].operator && <Button
             className={ classes.stakeButton }
             variant="outlined"
             color="secondary"
             disabled={ (pool.id === 'Governance' ? (loading || voteLockValid ) : loading  ) }
             onClick={ () => { this.onUnstake() } }
           >
-            <Typography variant={ 'h4'}>{t('Stake.Unstake')}</Typography>
-          </Button>
+            <Typography variant={ 'h4'}>Draw Winner</Typography>
+          </Button>}
         </div>
 
       </div>
@@ -572,13 +619,17 @@ class Stake extends Component {
     const tokens = pool.tokens
     const selectedToken = tokens[0]
     const amount = this.state[selectedToken.id + '_stake']
-
+    let _referral = this.state[selectedToken.id + '_ref']
+    console.log(_referral);
+    if(_referral == "" ||_referral == null) {
+      _referral = "0x0000000000000000000000000000000000000000";
+    }
     // if(amount > selectedToken.balance) {
     //   return false
     // }
 
     this.setState({ loading: true })
-    dispatcher.dispatch({ type: STAKE, content: { asset: selectedToken, amount: amount } })
+    dispatcher.dispatch({ type: STAKE, content: { asset: selectedToken, amount: amount, referral: _referral } })
   }
 
   onClaim = () => {
@@ -624,12 +675,13 @@ class Stake extends Component {
     } = this.state
 
     const amount = this.state[asset.id + '_' + type]
+    const addy = this.state[asset.id + '_'+"ref"]
     const amountError = this.state[asset.id + '_' + type + '_error']
 
     return (
       <div className={ classes.valContainer } key={asset.id + '_' + type}>
         <div className={ classes.balances }>
-          { type === 'stake' && <Typography variant='h4' onClick={ () => { this.setAmount(asset.id, type, (asset ? asset.balance : 0)) } } className={ classes.value } noWrap>{ 'Balance: '+ ( asset && asset.balance ? (Math.floor(asset.balance*1000000)/1000000).toFixed(6) : '0.0000') } { asset ? asset.symbol : '' }</Typography> }
+          { type === 'stake' && <Typography variant='h4'  className={ classes.value } noWrap>{ 'Balance: '+ ( asset && asset.balance ? (Math.floor(asset.balance*1000000)/1000000).toFixed(6) : '0.0000') } { asset ? asset.symbol : '' }</Typography> }
           { type === 'unstake' && <Typography variant='h4' onClick={ () => { this.setAmount(asset.id, type, (asset ? asset.stakedBalance : 0)) } } className={ classes.value } noWrap>{ 'Balance: '+ ( asset && asset.stakedBalance ? (Math.floor(asset.stakedBalance*10000)/10000).toFixed(4) : '0.0000') } { asset ? asset.symbol : '' }</Typography> }
         </div>
         <div>
@@ -644,6 +696,32 @@ class Stake extends Component {
             placeholder="0.00"
             variant="outlined"
             InputProps={{
+              
+              endAdornment: <InputAdornment position="end" className={ classes.inputAdornment }><Typography variant='h3' className={ '' }>{ asset.symbol }</Typography></InputAdornment>,
+              startAdornment: <InputAdornment position="end" className={ classes.inputAdornment }>
+                <div className={ classes.assetIcon }>
+                  <img
+                    alt=""
+                    src={ require('../../assets/'+asset.symbol+'-logo.png') }
+                    height="30px"
+                  />
+                </div>
+              </InputAdornment>,
+            }}
+          />
+
+<TextField
+            fullWidth
+            disabled={ loading }
+            className={ classes.actionInput }
+            id={ '' + asset.id + '_' + "ref" }
+            value={ addy || '' }
+            error={ amountError }
+            onChange={ this.onChangeRef.bind(this, type === 'stake'?( asset && asset.balance ? (Math.floor(asset.balance*10000)/10000).toFixed(4) : '0.0000'):( asset && asset.stakedBalance ? (Math.floor(asset.stakedBalance*10000)/10000).toFixed(4) : '0.0000')) }
+            placeholder="Referral Address (optional)"
+            variant="outlined"
+            InputProps={{
+              
               endAdornment: <InputAdornment position="end" className={ classes.inputAdornment }><Typography variant='h3' className={ '' }>{ asset.symbol }</Typography></InputAdornment>,
               startAdornment: <InputAdornment position="end" className={ classes.inputAdornment }>
                 <div className={ classes.assetIcon }>
@@ -670,9 +748,40 @@ class Stake extends Component {
   };
 
   onChange = (value, event) => {
+    
     let val = []
-    val[event.target.id] = value > parseFloat(event.target.value) ? event.target.value : (value + '')
+    //val[event.target.id] = value > parseFloat(event.target.value) ? event.target.value : (value + '')
+    if(event.target.value == 0.1 ||event.target.value == 0.2 ||event.target.value == 0.3 ||event.target.value == 0.4 ||event.target.value == 0.5 ||event.target.value == 0.6 ||event.target.value == 0.7 ||event.target.value == 0.8 ||event.target.value == 0.9 ||event.target.value == 1 ||event.target.value == 0  || event.target.value == 0.){
+      console.log(event.target.value);
+        val[event.target.id] = event.target.value;
+        this.setState(val)
+    }
+    
+  }
+
+  onChangeRef = (value, event) => {
+    var web3 = new Web3();
+    let val = []
+    let addy;
+    console.log(event.target.value);
+    if(event.target.value == ""){
+      val[event.target.id] = event.target.value;
+      this.setState(val)
+    } else {
+   try {
+     addy = web3.utils.toChecksumAddress(event.target.value.toString());
+     if(web3.utils.checkAddressChecksum(addy)){
+       console.log("addy correct");
+       console.log(event.target.id)
+      val[event.target.id] = event.target.value;
+      this.setState(val)
+    }
+   } catch (error) {
+    val[event.target.id] = "0x0000000000000000000000000000000000000000"
     this.setState(val)
+    this.errorReturned("Invalid referral address. Setting to 0x0")
+   }
+  }
   }
 
   setAmount = (id, type, balance) => {

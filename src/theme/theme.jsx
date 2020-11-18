@@ -284,7 +284,7 @@ const iswapTheme = {
     },
     MuiFormControlLabel: {
       label: {
-        color: colors.darkBlack,
+        color: "#0b8f92",
       },
     },
   },

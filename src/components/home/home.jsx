@@ -11,6 +11,10 @@ import AttachMoneyIcon from '@material-ui/icons/AttachMoney';
 import HowToVoteIcon from '@material-ui/icons/HowToVote';
 import WbIncandescentIcon from '@material-ui/icons/WbIncandescent';
 import DetailsIcon from '@material-ui/icons/Details';
+import Store from "../../stores";
+import {
+  GET_BALANCES_PERPETUAL,
+} from "../../constants";
 
 const styles = theme => ({
   root: {
@@ -172,11 +176,17 @@ const styles = theme => ({
   }
 });
 
+const emitter = Store.emitter
+const dispatcher = Store.dispatcher
+const store = Store.store
+
 class Home extends Component {
 
   constructor(props) {
     super()
-
+    const pool = store.getStore("rewardPools");
+    store.setStore({ currentPool: pool[0] })
+    dispatcher.dispatch({ type: GET_BALANCES_PERPETUAL, content: {} })
     this.state = {
     }
   }
@@ -186,7 +196,7 @@ class Home extends Component {
 
     return (
       <div className={ classes.root }>
-        <Card className={ `${classes.card} ${classes.earn}` } onClick={ () => { this.nav(location.pathname+'staking') } }>
+        <Card className={ `${classes.card} ${classes.earn}` } onClick={ () => { this.nav(location.pathname+'stake') } }>
           <DetailsIcon className={ `${classes.icon} icon` } />
           <Typography variant={'h3'} className={ `${classes.title} title` }>Lottery</Typography>
         </Card>

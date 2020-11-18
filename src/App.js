@@ -42,7 +42,6 @@ const bigStyles={
   display: 'flex',
   flexDirection: 'column',
   minHeight: '100vh',
-  minWidth: '100vw',
   justifyContent: 'center',
   alignItems: 'center',
   backgroundImage: "url(" + backgroundImageBig + ")",
@@ -54,7 +53,6 @@ var smallStyles={
   display: 'flex',
   flexDirection: 'column',
   minHeight: '100vh',
-  minWidth: '100vw',
   justifyContent: 'center',
   alignItems: 'center',
   backgroundImage: "url(" + backgroundImageSmall + ")",
@@ -76,11 +74,14 @@ class App extends Component {
     headerValue: null
   };
 
+
   setHeaderValue = (newValue) => {
     this.setState({ headerValue: newValue })
   };
 
   componentWillMount() {
+    const pool = store.getStore("rewardPools");
+    store.setStore({ currentPool: pool[0] })
     emitter.on(CONNECTION_CONNECTED, this.connectionConnected);
     emitter.on(CONNECTION_DISCONNECTED, this.connectionDisconnected);
     emitter.on(CONFIGURE_RETURNED, this.configureReturned);
@@ -92,7 +93,7 @@ class App extends Component {
         .then((a) => {
           store.setStore({ account: { address: a.account }, web3context: { library: { provider: a.provider } } })
           emitter.emit(CONNECTION_CONNECTED)
-          // console.log(a)
+           console.log("injected connected")
         })
         .catch((e) => {
           // console.log(e)
@@ -137,12 +138,6 @@ class App extends Component {
       <MuiThemeProvider theme={ createMuiTheme(interestTheme) }>
         <CssBaseline />
         <HashRouter basename="/">
-          { !account &&
-            <div style={style()}>
-              <Account />
-            </div>
-          }
-          { account &&
             <div style={style()}>
               <Switch>
                 <Route path="/stake">
@@ -165,11 +160,12 @@ class App extends Component {
                   <Claim />
                 </Route>*/}
                 <Route path="/">
-                  <Home />
+                 {/* <Home /> */}
+                 <Footer />
+                  <Stake />
                 </Route>
               </Switch>
             </div>
-          }
         </HashRouter>
       </MuiThemeProvider>
     );

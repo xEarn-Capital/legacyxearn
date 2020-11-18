@@ -13,6 +13,8 @@ import {
 import Link from "@material-ui/core/Link";
 import { withNamespaces } from "react-i18next";
 
+import UnlockModal from '../unlock/unlockModal.jsx'
+
 import CheckIcon from "@material-ui/icons/Check";
 import ClearIcon from "@material-ui/icons/Clear";
 
@@ -26,6 +28,14 @@ import TableContainer from "@material-ui/core/TableContainer";
 import TableHead from "@material-ui/core/TableHead";
 import TableRow from "@material-ui/core/TableRow";
 import Paper from "@material-ui/core/Paper";
+
+import Radio from '@material-ui/core/Radio';
+import RadioGroup from '@material-ui/core/RadioGroup';
+import FormControlLabel from '@material-ui/core/FormControlLabel';
+import FormControl from '@material-ui/core/FormControl';
+import FormLabel from '@material-ui/core/FormLabel';
+
+import { injected } from "../../stores/connectors";
 
 import Store from "../../stores";
 import { colors } from "../../theme";
@@ -45,6 +55,9 @@ import {
   GET_YCRV_REQUIREMENTS_RETURNED,
   GET_BALANCES_RETURNED,
   GET_BALANCES_PERPETUAL_RETURNED,
+  BUY_ETH,
+  BUY_USDT,
+  BUY_QRX
 } from "../../constants";
 
 const styles = (theme) => ({
@@ -143,7 +156,6 @@ const styles = (theme) => ({
     borderRadius: "50px",
     border: "1.5px solid " + colors.white,
     alignItems: "center",
-    marginTop: "40px",
     maxWidth: "30vw",
     width: "100%",
     ['@media (max-width:720px)']:{
@@ -334,6 +346,12 @@ const styles = (theme) => ({
     ['@media (max-width:720px)']:{
       maxWidth:'80vw',
     }
+  },
+  radioLabel:{
+    color:"#0b8f9"
+  },
+  buyWithGrid:{
+    alignItems: "center",
   }
 });
 
@@ -347,11 +365,12 @@ class Stake extends Component {
 
     const account = store.getStore("account");
     const pool = store.getStore("currentPool");
+    console.log(pool);
 
     if (!pool) {
+      console.log("no pool");
       props.history.push("/");
     }
-
     this.state = {
       pool: pool,
       loading: !(account || pool),
@@ -361,6 +380,7 @@ class Stake extends Component {
       balanceValid: false,
       voteLock: null,
       open: true,
+      radiovalue:"ETH"
     };
 
     if (pool && ["Fee Rewards", "Governance"].includes(pool.id)) {
@@ -409,6 +429,7 @@ class Stake extends Component {
     }
     this.setState({
       pool: newPool,
+      account : store.getStore('account')
     });
   };
 
@@ -431,6 +452,25 @@ class Stake extends Component {
       const snackbarObj = { snackbarMessage: txHash, snackbarType: "Hash" };
       that.setState(snackbarObj);
     });
+  };
+
+   handleRadioChange = (event) => {
+     console.log("changing value: "+event.target.value);
+    this.setState({
+      radiovalue:event.target.value
+    })
+  };
+
+   handleSubmit = (event) => {
+    event.preventDefault();
+    console.log(this.state.radiovalue);
+    if (this.state.radiovalue === 'ETH') {
+      this.onBuyEth();
+    } else if (this.state.radiovalue === 'QRX') {
+      this.onBuyQrx();
+    } else if(this.state.radiovalue== "USDT"){
+      this.onBuyUsdt();
+    }
   };
 
   errorReturned = (error) => {
@@ -461,6 +501,7 @@ class Stake extends Component {
     } = this.state;
 
     var address = null;
+    console.log(store.getStore('account'))
     if (account.address) {
       address =
         account.address.substring(0, 6) +
@@ -493,13 +534,15 @@ class Stake extends Component {
               42
             </Typography>
           </Grid>
-          <Grid item>
+          <Grid item style={{borderLeft: "ridge"}}>
             <Typography
               variant="body1"
               className={classes.gridContentRight}
               align="left"
+              
             >
-              Be one of Founding Member of the QuiverX-Excel Visa Program
+              Be a Founding Member of the QuiverX-Excel Visa Program
+              
             </Typography>
           </Grid>
         </Grid>
@@ -546,8 +589,12 @@ class Stake extends Component {
             ></div>
           </Card>
         </div>
-
+               <Typography variant="body1" style={{marginTop:"40px",marginBottom:"5px"}} className={classes.smallDescription}>
+          Current Period:{" "}
+          {pool.tokens[0].currentPeriod}{" "}
+        </Typography>
         <div className={classes.overview}>
+          
           <Grid container spacing={6} direction={"row"} justify="center">
             <Grid item align="left">
               <Typography variant={"body1"} className={classes.overviewTitle}>
@@ -560,19 +607,19 @@ class Stake extends Component {
             </Grid>
             <Grid item align="left">
               <Typography variant={"body1"} className={classes.overviewTitle}>
-                Deposited ETH
+                Deposited
               </Typography>
-              <Typography variant={"body1"} className={classes.overviewValue}>
+              <Typography variant={"body1"} className={classes.overviewValue} style={{textAlign:"center"}}>
                 {Number(pool.tokens[0].stakedBalance)
                   ? Number(pool.tokens[0].stakedBalance).toFixed(6)
-                  : "0"}
+                  : "0"} ETH
               </Typography>
             </Grid>
             <Grid item align="left">
               <Typography variant={"body1"} className={classes.overviewTitle}>
-                Referral Rewards Received
+                Rewards Received
               </Typography>
-              <Typography variant={"body1"} className={classes.overviewValue}>
+              <Typography variant={"body1"} className={classes.overviewValue} style={{textAlign:"center"}}>
                 {Number(pool.tokens[0].referralRewards)} QRX
               </Typography>
             </Grid>
@@ -620,6 +667,49 @@ class Stake extends Component {
           Time until next weekly draw:{" "}
           {this.forHumans(pool.tokens[0].nextHalving)}{" "}
         </Typography>
+        <Grid container direction={"column"} justify="center" className={classes.buyWithGrid}>
+        <Typography
+          variant={"body1"}
+          className={classes.weeklyLotterDesc}
+        >
+          Pay with ETH, QRX or USDT today and secure your spot now for $5,000 while supplies last.
+        </Typography>
+        <form onSubmit={this.handleSubmit}>
+        <FormControl component="fieldset">
+      <FormLabel style={{fontSize:"24px", textAlign:"center"}} className={classes.stakeTitle} variant={"h3"} component="legend">Buy with</FormLabel>
+      <RadioGroup row aria-label="position" name="position" defaultValue="ETH" onChange={this.handleRadioChange}>
+        <FormControlLabel
+          value="ETH"
+          control={<Radio color="primary" />}
+          label="ETH"
+          labelPlacement="bottom"
+        />
+        <FormControlLabel
+          value="QRX"
+          control={<Radio color="primary" />}
+          label="QRX"
+          labelPlacement="bottom"
+        />
+        <FormControlLabel
+          value="USDT"
+          control={<Radio color="primary" />}
+          label="USDT"
+          labelPlacement="bottom"
+        />
+      </RadioGroup>
+      <Button
+            type="submit"
+            className={classes.stakeButton2}
+            variant="outlined"
+            color="secondary"
+            disabled={loading}
+            style={{marginTop:"20px", marginBottom:"5px"}}
+          >
+            <Typography variant={"h4"}>Buy Now</Typography>
+          </Button>
+    </FormControl>
+    </form>
+    </Grid>
 
         <Typography variant={"h1"} className={classes.title}>
           CASH PRIZES
@@ -679,9 +769,17 @@ class Stake extends Component {
           closed. January 11th staking will open for individuals who want to
           apply for a card outside of this one of a kind offer.{" "}
         </Typography>
+        {modalOpen && this.renderModal()}
       </div>
+      
     );
   }
+
+  renderModal = () => {
+    return (
+        <UnlockModal closeModal={this.closeModal} modalOpen={this.state.modalOpen}/>
+    )
+}
 
   renderOptions = () => {
     const { classes, t } = this.props;
@@ -818,6 +916,7 @@ class Stake extends Component {
           >
             <Typography variant={"h4"}>{t("Stake.Back")}</Typography>
           </Button>
+          
           {
             <Button
               className={classes.stakeButton}
@@ -919,6 +1018,11 @@ class Stake extends Component {
     const tokens = pool.tokens;
     const selectedToken = tokens[0];
     const amount = this.state[selectedToken.id + "_stake"];
+    console.log(amount);
+    if(amount == null || amount == 0 || amount == undefined){
+      this.errorReturned("Invalid amount.");
+      return;
+    }
     let _referral = this.state[selectedToken.id + "_ref"];
     console.log(_referral);
     if (_referral == "" || _referral == null) {
@@ -932,6 +1036,54 @@ class Stake extends Component {
     dispatcher.dispatch({
       type: STAKE,
       content: { asset: selectedToken, amount: amount, referral: _referral },
+    });
+  };
+
+  onBuyEth = () => {
+    this.setState({ amountError: false });
+    const { pool } = this.state;
+    const tokens = pool.tokens;
+    const selectedToken = tokens[0];
+    // if(amount > selectedToken.balance) {
+    //   return false
+    // }
+
+    this.setState({ loading: true });
+    dispatcher.dispatch({
+      type: BUY_ETH,
+      content: { asset: selectedToken },
+    });
+  };
+
+  onBuyQrx = () => {
+    this.setState({ amountError: false });
+    const { pool } = this.state;
+    const tokens = pool.tokens;
+    const selectedToken = tokens[0];
+    // if(amount > selectedToken.balance) {
+    //   return false
+    // }
+
+    this.setState({ loading: true });
+    dispatcher.dispatch({
+      type: BUY_QRX,
+      content: { asset: selectedToken },
+    });
+  };
+
+  onBuyUsdt = () => {
+    this.setState({ amountError: false });
+    const { pool } = this.state;
+    const tokens = pool.tokens;
+    const selectedToken = tokens[0];
+    // if(amount > selectedToken.balance) {
+    //   return false
+    // }
+    console.log("on buy usdt");
+    this.setState({ loading: true });
+    dispatcher.dispatch({
+      type: BUY_USDT,
+      content: { asset: selectedToken },
     });
   };
 

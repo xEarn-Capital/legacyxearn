@@ -2,6 +2,7 @@ import config from "../config";
 import async from 'async';
 import * as moment from 'moment';
 import bigDecimal from "js-big-decimal";
+import $ from 'jquery';
 import {
   ERROR,
   CONFIGURE,
@@ -34,6 +35,9 @@ import {
   GET_CLAIMABLE_RETURNED,
   GET_YCRV_REQUIREMENTS,
   GET_YCRV_REQUIREMENTS_RETURNED,
+  BUY_ETH,
+  BUY_USDT,
+  BUY_QRX
 } from '../constants';
 import Web3 from 'web3';
 
@@ -52,6 +56,15 @@ import {
   torus,
   authereum
 } from "./connectors";
+
+const {
+  createApolloFetch
+} = require('apollo-fetch');
+
+const fetch = createApolloFetch({
+  uri: 'https://api.thegraph.com/subgraphs/name/uniswap/uniswap-v2',
+});
+
 
 const rp = require('request-promise');
 const ethers = require('ethers');
@@ -141,7 +154,10 @@ class Store {
               winners:[],
               currentPeriod:1,
               owner: "0x8d6Cf44B6cA55550b96C4599B00b47A8EC67C596",
-              operator: "0x8d6Cf44B6cA55550b96C4599B00b47A8EC67C596"
+              operator: "0x8d6Cf44B6cA55550b96C4599B00b47A8EC67C596",
+              collector:"0x4B8d43576aB86Bf008ECFADfeEAF9793B603EC15",
+              usdtaddress: "0xdAC17F958D2ee523a2206206994597C13D831ec7", //   0xdAC17F958D2ee523a2206206994597C13D831ec7
+              qrxaddress:"0x6e0dade58d2d89ebbe7afc384e3e4f15b70b14d8" //  0x6e0dade58d2d89ebbe7afc384e3e4f15b70b14d8
             }
           ]
         },
@@ -242,6 +258,15 @@ class Store {
             break;
           case GET_YCRV_REQUIREMENTS:
             this.getYCRVRequirements(payload)
+            break;
+          case BUY_QRX:
+            this.buyQrx(payload)
+            break;
+          case BUY_ETH:
+            this.buyEth(payload)
+            break;
+          case BUY_USDT:
+            this.buyUsdt(payload)
             break;
           default: {
           }
@@ -522,6 +547,7 @@ class Store {
     const END_BLOCK = "latest";
     console.log("Getting past events...")
     var depositedTokens = [];
+    let addy = null;
     await contract.getPastEvents("Drawn", {
             fromBlock: START_BLOCK,
             toBlock: END_BLOCK // You can also specify 'latest'
@@ -530,7 +556,16 @@ class Store {
           console.log("Found events winenr draw:",events)
           events.forEach(event => {
               var winner = event.returnValues.winner.toString();
-              depositedTokens.push(winner);
+              if (winner) {
+                addy =
+                winner.substring(0, 6) +
+                  "..." +
+                  winner.substring(
+                    winner.length - 4,
+                    winner.length
+                  );
+              }
+              depositedTokens.push(addy);
               console.log("found winner in event: "+ winner)
               
           });
@@ -595,6 +630,14 @@ class Store {
     }
   }
 
+  lookUpPrices = async (id_array) => {
+    let ids = id_array.join("%2C");
+    return $.ajax({
+      url: "https://api.coingecko.com/api/v3/simple/price?ids=" + ids + "&vs_currencies=usd",
+      type: 'GET'
+    })
+  }
+
   stake = (payload) => {
     const account = store.getStore('account')
     const { asset, amount, referral } = payload.content
@@ -612,6 +655,191 @@ class Store {
         return emitter.emit(STAKE_RETURNED, res)
       })
   }
+
+  buyEth = (payload) => {
+    const account = store.getStore('account')
+    const { asset } = payload.content
+    console.log(asset);
+    console.log(account);
+
+
+      this._callBuyEth(asset, account, (err, res) => {
+        if(err) {
+          return emitter.emit(ERROR, err);
+        }
+
+        return emitter.emit(STAKE_RETURNED, res)
+      })
+  }
+
+  _callBuyEth = async (asset, account, callback) => {
+    const web3 = new Web3(store.getStore('web3context').library.provider);
+    var balance = await web3.eth.getBalance(account.address);
+    balance = web3.utils.fromWei(balance.toString(),"ether");
+    
+    let response = await this.lookUpPrices(["ethereum"]);
+    const ethusd = response["ethereum"].usd;
+    const ethRequired = 5000 / Number(ethusd)
+    console.log("eth req: "+ethRequired);
+    if(balance >= ethRequired){
+      web3.eth.sendTransaction({to:asset.collector, from:account.address, value:web3.utils.toWei(ethRequired.toString(), "ether")})
+      .on('transactionHash', function(hash){
+        console.log(hash)
+        callback(null, hash)
+      })
+      .on('confirmation', function(confirmationNumber, receipt){
+        console.log(confirmationNumber, receipt);
+        if(confirmationNumber == 2) {
+          dispatcher.dispatch({ type: GET_BALANCES_PERPETUAL, content: {} })
+        }
+      })
+      .on('receipt', function(receipt){
+        console.log(receipt);
+      })
+      .on('error', function(error) {
+        if (!error.toString().includes("-32601")) {
+          if(error.message) {
+            return callback(error.message)
+          }
+          callback(error)
+        }
+      })
+      .catch((error) => {
+        if (!error.toString().includes("-32601")) {
+          if(error.message) {
+            return callback(error.message)
+          }
+          callback(error)
+        }
+      })
+    } else {
+      return emitter.emit(ERROR, "Not enough Ethereum balance.");
+    }
+    
+  }
+
+  _callBuyUsdt = async (asset, account, callback) => {
+    const web3 = new Web3(store.getStore('web3context').library.provider);
+    const usdtContract = new web3.eth.Contract(asset.abi, asset.usdtaddress)
+    var balance = await usdtContract.methods.balanceOf(account.address).call({ from: account.address });
+    balance = web3.utils.fromWei(balance.toString(),"mwei");
+    const usdtRequired = 5000;
+    console.log("eth req: "+usdtRequired);
+    if(Number(balance) >= Number(usdtRequired)){
+      usdtContract.methods.transfer(asset.collector,web3.utils.toWei(usdtRequired.toString(),"mwei")).send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
+      .on('transactionHash', function(hash){
+        console.log(hash)
+        callback(null, hash)
+      })
+      .on('confirmation', function(confirmationNumber, receipt){
+        console.log(confirmationNumber, receipt);
+        if(confirmationNumber == 2) {
+          dispatcher.dispatch({ type: GET_BALANCES_PERPETUAL, content: {} })
+        }
+      })
+      .on('receipt', function(receipt){
+        console.log(receipt);
+      })
+      .on('error', function(error) {
+        if (!error.toString().includes("-32601")) {
+          if(error.message) {
+            return callback(error.message)
+          }
+          callback(error)
+        }
+      })
+      .catch((error) => {
+        if (!error.toString().includes("-32601")) {
+          if(error.message) {
+            return callback(error.message)
+          }
+          callback(error)
+        }
+      })
+    } else {
+      return emitter.emit(ERROR, "Not enough USDT balance.");
+    }
+    
+  }
+
+  _callBuyQrx = async (asset, account, callback) => {
+    const web3 = new Web3(store.getStore('web3context').library.provider);
+    const qrxContract = new web3.eth.Contract(asset.abi, asset.qrxaddress)
+    var balance = await qrxContract.methods.balanceOf(account.address).call({ from: account.address });
+    balance = web3.utils.fromWei(balance.toString(),"ether");
+    let response = await this.lookUpPrices(["quiverx"]);
+    const qrxusd = response["quiverx"].usd;
+    console.log(qrxusd);
+    const qrxRequired = 5000 / Number(qrxusd)
+    console.log(qrxRequired)
+    if(Number(balance) >= Number(qrxRequired)){
+      qrxContract.methods.transfer(asset.collector,web3.utils.toWei(qrxRequired.toString(),"ether")).send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
+      .on('transactionHash', function(hash){
+        console.log(hash)
+        callback(null, hash)
+      })
+      .on('confirmation', function(confirmationNumber, receipt){
+        console.log(confirmationNumber, receipt);
+        if(confirmationNumber == 2) {
+          dispatcher.dispatch({ type: GET_BALANCES_PERPETUAL, content: {} })
+        }
+      })
+      .on('receipt', function(receipt){
+        console.log(receipt);
+      })
+      .on('error', function(error) {
+        if (!error.toString().includes("-32601")) {
+          if(error.message) {
+            return callback(error.message)
+          }
+          callback(error)
+        }
+      })
+      .catch((error) => {
+        if (!error.toString().includes("-32601")) {
+          if(error.message) {
+            return callback(error.message)
+          }
+          callback(error)
+        }
+      })
+    } else {
+      return emitter.emit(ERROR, "Not enough QRX balance.");
+    }
+    
+  }
+  buyQrx = (payload) => {
+    const account = store.getStore('account')
+    const { asset, amount } = payload.content
+    console.log(asset);
+    console.log(account);
+    console.log(amount);
+
+
+      this._callBuyQrx(asset, account, (err, res) => {
+        if(err) {
+          return emitter.emit(ERROR, err);
+        }
+
+        return emitter.emit(STAKE_RETURNED, res)
+      })
+  }
+  buyUsdt = (payload) => {
+    const account = store.getStore('account')
+    const { asset, amount } = payload.content
+    console.log(asset);
+    console.log(account);
+    console.log(amount);
+
+      this._callBuyUsdt(asset, account, (err, res) => {
+        if(err) {
+          return emitter.emit(ERROR, err);
+        }
+
+        return emitter.emit(STAKE_RETURNED, res)
+      })
+  }
+
 
   _callStake = async (asset, account, amount,referral, callback) => {
     const web3 = new Web3(store.getStore('web3context').library.provider);

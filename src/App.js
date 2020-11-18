@@ -19,6 +19,8 @@ import Header from './components/header';
 // import Propose from './components/propose';
 import Claim from './components/claim';
 import Vote from './components/vote';
+import backgroundImageBig from "./assets/pageBackground.png";
+import backgroundImageSmall from "./assets/pageBackground.jpg";
 
 import {
   CONNECTION_CONNECTED,
@@ -36,7 +38,39 @@ const emitter = Store.emitter
 const dispatcher = Store.dispatcher
 const store = Store.store
 
+const bigStyles={
+  display: 'flex',
+  flexDirection: 'column',
+  minHeight: '100vh',
+  minWidth: '100vw',
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundImage: "url(" + backgroundImageBig + ")",
+  backgroundSize: "cover",
+}
+
+var smallStyles={
+  
+  display: 'flex',
+  flexDirection: 'column',
+  minHeight: '100vh',
+  minWidth: '100vw',
+  justifyContent: 'center',
+  alignItems: 'center',
+  backgroundImage: "url(" + backgroundImageSmall + ")",
+  backgroundSize: "cover",
+  
+}
+var style = function() {
+  if (window.innerWidth < 720) {
+    return smallStyles;
+  } else {
+    return bigStyles;
+  }
+}
+
 class App extends Component {
+
   state = {
     account: null,
     headerValue: null
@@ -104,27 +138,12 @@ class App extends Component {
         <CssBaseline />
         <HashRouter basename="/">
           { !account &&
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: '100vh',
-              minWidth: '100vw',
-              justifyContent: 'center',
-              alignItems: 'center',
-              background: "#f9fafb"
-            }}>
+            <div style={style()}>
               <Account />
             </div>
           }
           { account &&
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: '100vh',
-              justifyContent: 'center',
-              alignItems: 'center',
-              background: "#f9fafb"
-            }}>
+            <div style={style()}>
               <Switch>
                 <Route path="/stake">
                   <Footer />

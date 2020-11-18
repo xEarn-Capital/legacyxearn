@@ -145,6 +145,7 @@ class Store {
             }
           ]
         },
+    
         // {
         //   id: 'Governance',
         //   name: 'Governance',

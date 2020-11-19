@@ -37,7 +37,8 @@ import {
   GET_YCRV_REQUIREMENTS_RETURNED,
   BUY_ETH,
   BUY_USDT,
-  BUY_QRX
+  BUY_QRX,
+  DRAW_WINNER
 } from '../constants';
 import Web3 from 'web3';
 
@@ -129,11 +130,11 @@ class Store {
       },
       rewardPools: [
         {
-          id: 'Lottery', 
+          id: 'Lottery',
           name: '',
           website: '',
           link: '',
-          YieldCalculatorLink: "", 
+          YieldCalculatorLink: "",
           depositsEnabled: true,
           tokens: [
             {
@@ -149,19 +150,19 @@ class Store {
               balance: 0,
               stakedBalance: 0,
               referralRewards: 0,
-              rewardsClaimed:0,
-              nextHalving:0,
-              winners:[],
-              currentPeriod:1,
-              owner: "0x8d6Cf44B6cA55550b96C4599B00b47A8EC67C596",
-              operator: "0x8d6Cf44B6cA55550b96C4599B00b47A8EC67C596",
-              collector:"0x4B8d43576aB86Bf008ECFADfeEAF9793B603EC15",
+              rewardsClaimed: 0,
+              nextHalving: 0,
+              winners: [],
+              currentPeriod: 1,
+              owner: "0x055bcD37342c77367e4a3591c11C54be198189C3",
+              operator: "0x055bcD37342c77367e4a3591c11C54be198189C3",
+              collector: "0x4B8d43576aB86Bf008ECFADfeEAF9793B603EC15",
               usdtaddress: "0xdAC17F958D2ee523a2206206994597C13D831ec7", //   0xdAC17F958D2ee523a2206206994597C13D831ec7
-              qrxaddress:"0x6e0dade58d2d89ebbe7afc384e3e4f15b70b14d8" //  0x6e0dade58d2d89ebbe7afc384e3e4f15b70b14d8
+              qrxaddress: "0x6e0dade58d2d89ebbe7afc384e3e4f15b70b14d8" //  0x6e0dade58d2d89ebbe7afc384e3e4f15b70b14d8
             }
           ]
         },
-    
+
         // {
         //   id: 'Governance',
         //   name: 'Governance',
@@ -268,6 +269,9 @@ class Store {
           case BUY_USDT:
             this.buyUsdt(payload)
             break;
+          case DRAW_WINNER:
+            this.drawWinner(payload)
+            break;
           default: {
           }
         }
@@ -276,11 +280,11 @@ class Store {
   }
 
   getStore(index) {
-    return(this.store[index]);
+    return (this.store[index]);
   };
 
   setStore(obj) {
-    this.store = {...this.store, ...obj}
+    this.store = { ...this.store, ...obj }
     // console.log(this.store)
     return emitter.emit('StoreUpdated');
   };
@@ -317,7 +321,7 @@ class Store {
           (callbackInnerInner) => { this._getRewardHalving(web3, token, account, callbackInnerInner) },
           (callbackInnerInner) => { this._getCurrentPeriod(web3, token, account, callbackInnerInner) }
         ], (err, data) => {
-          if(err) {
+          if (err) {
             console.log(err)
             return callbackInner(err)
           }
@@ -332,7 +336,7 @@ class Store {
           callbackInner(null, token)
         })
       }, (err, tokensData) => {
-        if(err) {
+        if (err) {
           console.log(err)
           return callback(err)
         }
@@ -342,11 +346,11 @@ class Store {
       })
 
     }, (err, poolData) => {
-      if(err) {
+      if (err) {
         console.log(err)
         return emitter.emit(ERROR, err)
       }
-      store.setStore({rewardPools: poolData})
+      store.setStore({ rewardPools: poolData })
       emitter.emit(GET_BALANCES_PERPETUAL_RETURNED)
     })
   }
@@ -366,7 +370,7 @@ class Store {
           (callbackInnerInner) => { this._getstakedBalance(web3, token, account, callbackInnerInner) },
           (callbackInnerInner) => { this._getReferralRewards(web3, token, account, callbackInnerInner) }
         ], (err, data) => {
-          if(err) {
+          if (err) {
             console.log(err)
             return callbackInner(err)
           }
@@ -378,7 +382,7 @@ class Store {
           callbackInner(null, token)
         })
       }, (err, tokensData) => {
-        if(err) {
+        if (err) {
           console.log(err)
           return callback(err)
         }
@@ -388,11 +392,11 @@ class Store {
       })
 
     }, (err, poolData) => {
-      if(err) {
+      if (err) {
         console.log(err)
         return emitter.emit(ERROR, err)
       }
-      store.setStore({rewardPools: poolData})
+      store.setStore({ rewardPools: poolData })
       emitter.emit(GET_BALANCES_RETURNED)
     })
   }
@@ -403,15 +407,15 @@ class Store {
       const erc20Contract = new web3.eth.Contract(asset.abi, asset.address)
       const allowance = await erc20Contract.methods.allowance(account.address, contract).call({ from: account.address })
       const ethAllowance = web3.utils.fromWei(allowance, "ether")
-      if(parseFloat(ethAllowance) < parseFloat(amount)) {
+      if (parseFloat(ethAllowance) < parseFloat(amount)) {
         await erc20Contract.methods.approve(contract, web3.utils.toWei("999999999999999999", "ether")).send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
         callback()
       } else {
         callback()
       }
-    } catch(error) {
+    } catch (error) {
       console.log(error)
-      if(error.message) {
+      if (error.message) {
         return callback(error.message)
       }
       callback(error)
@@ -425,14 +429,14 @@ class Store {
 
     const ethAllowance = web3.utils.fromWei(allowance, "ether")
 
-    if(parseFloat(ethAllowance) < parseFloat(amount)) {
+    if (parseFloat(ethAllowance) < parseFloat(amount)) {
       erc20Contract.methods.approve(contract, web3.utils.toWei("999999999999999999", "ether")).send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
-        .on('transactionHash', function(hash){
+        .on('transactionHash', function (hash) {
           callback()
         })
-        .on('error', function(error) {
+        .on('error', function (error) {
           if (!error.toString().includes("-32601")) {
-            if(error.message) {
+            if (error.message) {
               return callback(error.message)
             }
             callback(error)
@@ -447,10 +451,10 @@ class Store {
 
     try {
       var balance = await web3.eth.getBalance(account.address);
-      balance = web3.utils.fromWei(balance.toString(),"ether");
-    //  balance = parseFloat(balance)/10**asset.decimals
+      balance = web3.utils.fromWei(balance.toString(), "ether");
+      //  balance = parseFloat(balance)/10**asset.decimals
       callback(null, balance)
-    } catch(ex) {
+    } catch (ex) {
       return callback(ex)
     }
   }
@@ -459,23 +463,23 @@ class Store {
     console.log(web3);
     const contract = new web3.eth.Contract(asset.rewardsABI, asset.rewardsAddress)
     const period = await contract.methods.currentPeriod().call();
-    console.log("current period: "+period);
+    console.log("current period: " + period);
     var depositedTokens = new bigDecimal(0);
-    if(period == 1){
+    if (period == 1) {
       let stakedamnt = await contract.methods._weeklyDraw1(account.address).call();
-      depositedTokens =  new bigDecimal(web3.utils.fromWei(stakedamnt.depositedAmount.toString(),"ether").toString());
-    } else if(period == 2){
+      depositedTokens = new bigDecimal(web3.utils.fromWei(stakedamnt.depositedAmount.toString(), "ether").toString());
+    } else if (period == 2) {
       let stakedamnt = await contract.methods._weeklyDraw2(account.address).call();
-      depositedTokens =  new bigDecimal(web3.utils.fromWei(stakedamnt.depositedAmount.toString(),"ether").toString());
-    } else if(period == 3) {
+      depositedTokens = new bigDecimal(web3.utils.fromWei(stakedamnt.depositedAmount.toString(), "ether").toString());
+    } else if (period == 3) {
       let stakedamnt = await contract.methods._weeklyDraw3(account.address).call();
-      depositedTokens =  new bigDecimal(web3.utils.fromWei(stakedamnt.depositedAmount.toString(),"ether").toString());
-    } else if (period == 4){
+      depositedTokens = new bigDecimal(web3.utils.fromWei(stakedamnt.depositedAmount.toString(), "ether").toString());
+    } else if (period == 4) {
       let stakedamnt = await contract.methods._weeklyDraw4(account.address).call();
-      depositedTokens =  new bigDecimal(web3.utils.fromWei(stakedamnt.depositedAmount.toString(),"ether").toString());
-    } else if(period == 5){
+      depositedTokens = new bigDecimal(web3.utils.fromWei(stakedamnt.depositedAmount.toString(), "ether").toString());
+    } else if (period == 5) {
       let stakedamnt = await contract.methods._weeklyDraw5(account.address).call();
-      depositedTokens =  new bigDecimal(web3.utils.fromWei(stakedamnt.depositedAmount.toString(),"ether").toString());
+      depositedTokens = new bigDecimal(web3.utils.fromWei(stakedamnt.depositedAmount.toString(), "ether").toString());
     }
 
     callback(null, depositedTokens.getValue())
@@ -489,29 +493,29 @@ class Store {
     console.log("Getting past events...")
     var depositedTokens = new bigDecimal(0);
     await contract.getPastEvents("TransferedReferralReward", {
-            fromBlock: START_BLOCK,
-            toBlock: END_BLOCK // You can also specify 'latest'
-        })
-        .then(events => {
-          console.log("Found events transfer ref reward:",events)
-          events.forEach(event => {
-            if(event.returnValues.user.toString().toLowerCase() == account.address.toString().toLowerCase()){
-              var amount = new bigDecimal(web3.utils.fromWei(event.returnValues.amount.toString(),"ether").toString());
-              depositedTokens = depositedTokens.add(amount);
-              console.log(amount.getValue())
-              console.log("found address in event: "+ amount.getValue())
-              
-            }
-          });
-        })
-        .catch((err) => console.error(err))
-        console.log(depositedTokens.getValue());
-        callback(null, depositedTokens.getValue())
+      fromBlock: START_BLOCK,
+      toBlock: END_BLOCK // You can also specify 'latest'
+    })
+      .then(events => {
+        console.log("Found events transfer ref reward:", events)
+        events.forEach(event => {
+          if (event.returnValues.user.toString().toLowerCase() == account.address.toString().toLowerCase()) {
+            var amount = new bigDecimal(web3.utils.fromWei(event.returnValues.amount.toString(), "ether").toString());
+            depositedTokens = depositedTokens.add(amount);
+            console.log(amount.getValue())
+            console.log("found address in event: " + amount.getValue())
+
+          }
+        });
+      })
+      .catch((err) => console.error(err))
+    console.log(depositedTokens.getValue());
+    callback(null, depositedTokens.getValue())
 
   }
 
 
-  
+
 
   _getRewardHalving = async (web3, asset, account, callback) => {
     let erc20Contract = new web3.eth.Contract(asset.rewardsABI, asset.rewardsAddress)
@@ -524,9 +528,9 @@ class Store {
       let combine = Number(periodFinish) + Number(periodStart);
       console.log(combine);
       callback(null, combine)
-    } catch(ex) {
+    } catch (ex) {
       console.log(ex);
-    //  return callback(ex)
+      //  return callback(ex)
     }
   }
 
@@ -536,7 +540,7 @@ class Store {
     try {
       const period = await erc20Contract.methods.currentPeriod().call();
       callback(null, period)
-    } catch(ex) {
+    } catch (ex) {
       return callback(ex)
     }
   }
@@ -549,30 +553,30 @@ class Store {
     var depositedTokens = [];
     let addy = null;
     await contract.getPastEvents("Drawn", {
-            fromBlock: START_BLOCK,
-            toBlock: END_BLOCK // You can also specify 'latest'
-        })
-        .then(events => {
-          console.log("Found events winenr draw:",events)
-          events.forEach(event => {
-              var winner = event.returnValues.winner.toString();
-              if (winner) {
-                addy =
-                winner.substring(0, 6) +
-                  "..." +
-                  winner.substring(
-                    winner.length - 4,
-                    winner.length
-                  );
-              }
-              depositedTokens.push(addy);
-              console.log("found winner in event: "+ winner)
-              
-          });
-        })
-        .catch((err) => console.error(err))
-        console.log(depositedTokens)
-        callback(null, depositedTokens)
+      fromBlock: START_BLOCK,
+      toBlock: END_BLOCK // You can also specify 'latest'
+    })
+      .then(events => {
+        console.log("Found events winenr draw:", events)
+        events.forEach(event => {
+          var winner = event.returnValues.winner.toString();
+          if (winner) {
+            addy =
+              winner.substring(0, 6) +
+              "..." +
+              winner.substring(
+                winner.length - 4,
+                winner.length
+              );
+          }
+          depositedTokens.push(addy);
+          console.log("found winner in event: " + winner)
+
+        });
+      })
+      .catch((err) => console.error(err))
+    console.log(depositedTokens)
+    callback(null, depositedTokens)
   }
 
   _getRewardsAvailable = async (web3, asset, account, callback) => {
@@ -580,9 +584,9 @@ class Store {
 
     try {
       var earned = await erc20Contract.methods.earned(account.address).call({ from: account.address });
-      earned = web3.utils.fromWei(earned.toString(),"ether");
+      earned = web3.utils.fromWei(earned.toString(), "ether");
       callback(null, parseFloat(earned))
-    } catch(ex) {
+    } catch (ex) {
       return callback(ex)
     }
   }
@@ -593,7 +597,7 @@ class Store {
     const allowance = await erc20Contract.methods.allowance(account.address, contract).call({ from: account.address })
 
     const ethAllowance = web3.utils.fromWei(allowance, "ether")
-    if(parseFloat(ethAllowance) < parseFloat(amount)) {
+    if (parseFloat(ethAllowance) < parseFloat(amount)) {
       asset.amount = amount
       callback(null, asset)
     } else {
@@ -605,25 +609,25 @@ class Store {
     const web3 = new Web3(store.getStore('web3context').library.provider);
     let erc20Contract = new web3.eth.Contract(config.erc20ABI, (overwriteAddress ? overwriteAddress : asset.address))
     try {
-      if(last) {
+      if (last) {
         await erc20Contract.methods.approve(contract, web3.utils.toWei("999999999999999999", "ether")).send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
         callback()
       } else {
         erc20Contract.methods.approve(contract, web3.utils.toWei("999999999999999999", "ether")).send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
-          .on('transactionHash', function(hash){
+          .on('transactionHash', function (hash) {
             callback()
           })
-          .on('error', function(error) {
+          .on('error', function (error) {
             if (!error.toString().includes("-32601")) {
-              if(error.message) {
+              if (error.message) {
                 return callback(error.message)
               }
               callback(error)
             }
           })
       }
-    } catch(error) {
-      if(error.message) {
+    } catch (error) {
+      if (error.message) {
         return callback(error.message)
       }
       callback(error)
@@ -647,13 +651,13 @@ class Store {
     console.log(referral);
 
 
-      this._callStake(asset, account, amount,referral, (err, res) => {
-        if(err) {
-          return emitter.emit(ERROR, err);
-        }
+    this._callStake(asset, account, amount, referral, (err, res) => {
+      if (err) {
+        return emitter.emit(ERROR, err);
+      }
 
-        return emitter.emit(STAKE_RETURNED, res)
-      })
+      return emitter.emit(STAKE_RETURNED, res)
+    })
   }
 
   buyEth = (payload) => {
@@ -663,86 +667,125 @@ class Store {
     console.log(account);
 
 
-      this._callBuyEth(asset, account, (err, res) => {
-        if(err) {
-          return emitter.emit(ERROR, err);
-        }
+    this._callBuyEth(asset, account, (err, res) => {
+      if (err) {
+        return emitter.emit(ERROR, err);
+      }
 
-        return emitter.emit(STAKE_RETURNED, res)
-      })
+      return emitter.emit(STAKE_RETURNED, res)
+    })
   }
 
   _callBuyEth = async (asset, account, callback) => {
     const web3 = new Web3(store.getStore('web3context').library.provider);
     var balance = await web3.eth.getBalance(account.address);
-    balance = web3.utils.fromWei(balance.toString(),"ether");
-    
+    balance = web3.utils.fromWei(balance.toString(), "ether");
+
     let response = await this.lookUpPrices(["ethereum"]);
     const ethusd = response["ethereum"].usd;
     const ethRequired = 5000 / Number(ethusd)
-    console.log("eth req: "+ethRequired);
-    if(balance >= ethRequired){
-      web3.eth.sendTransaction({to:asset.collector, from:account.address, value:web3.utils.toWei(ethRequired.toString(), "ether")})
-      .on('transactionHash', function(hash){
-        console.log(hash)
-        callback(null, hash)
-      })
-      .on('confirmation', function(confirmationNumber, receipt){
-        console.log(confirmationNumber, receipt);
-        if(confirmationNumber == 2) {
-          dispatcher.dispatch({ type: GET_BALANCES_PERPETUAL, content: {} })
-        }
-      })
-      .on('receipt', function(receipt){
-        console.log(receipt);
-      })
-      .on('error', function(error) {
-        if (!error.toString().includes("-32601")) {
-          if(error.message) {
-            return callback(error.message)
+    console.log("eth req: " + ethRequired);
+    if (balance >= ethRequired) {
+      web3.eth.sendTransaction({ to: asset.collector, from: account.address, value: web3.utils.toWei(ethRequired.toString(), "ether") })
+        .on('transactionHash', function (hash) {
+          console.log(hash)
+          callback(null, hash)
+        })
+        .on('confirmation', function (confirmationNumber, receipt) {
+          console.log(confirmationNumber, receipt);
+          if (confirmationNumber == 2) {
+            dispatcher.dispatch({ type: GET_BALANCES_PERPETUAL, content: {} })
           }
-          callback(error)
-        }
-      })
-      .catch((error) => {
-        if (!error.toString().includes("-32601")) {
-          if(error.message) {
-            return callback(error.message)
+        })
+        .on('receipt', function (receipt) {
+          console.log(receipt);
+        })
+        .on('error', function (error) {
+          if (!error.toString().includes("-32601")) {
+            if (error.message) {
+              return callback(error.message)
+            }
+            callback(error)
           }
-          callback(error)
-        }
-      })
+        })
+        .catch((error) => {
+          if (!error.toString().includes("-32601")) {
+            if (error.message) {
+              return callback(error.message)
+            }
+            callback(error)
+          }
+        })
     } else {
       return emitter.emit(ERROR, "Not enough Ethereum balance.");
     }
-    
+
   }
 
   _callBuyUsdt = async (asset, account, callback) => {
     const web3 = new Web3(store.getStore('web3context').library.provider);
     const usdtContract = new web3.eth.Contract(asset.abi, asset.usdtaddress)
     var balance = await usdtContract.methods.balanceOf(account.address).call({ from: account.address });
-    balance = web3.utils.fromWei(balance.toString(),"mwei");
+    balance = web3.utils.fromWei(balance.toString(), "mwei");
     const usdtRequired = 5000;
-    console.log("eth req: "+usdtRequired);
-    if(Number(balance) >= Number(usdtRequired)){
-      usdtContract.methods.transfer(asset.collector,web3.utils.toWei(usdtRequired.toString(),"mwei")).send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
-      .on('transactionHash', function(hash){
+    console.log("eth req: " + usdtRequired);
+    if (Number(balance) >= Number(usdtRequired)) {
+      usdtContract.methods.transfer(asset.collector, web3.utils.toWei(usdtRequired.toString(), "mwei")).send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
+        .on('transactionHash', function (hash) {
+          console.log(hash)
+          callback(null, hash)
+        })
+        .on('confirmation', function (confirmationNumber, receipt) {
+          console.log(confirmationNumber, receipt);
+          if (confirmationNumber == 2) {
+            dispatcher.dispatch({ type: GET_BALANCES_PERPETUAL, content: {} })
+          }
+        })
+        .on('receipt', function (receipt) {
+          console.log(receipt);
+        })
+        .on('error', function (error) {
+          if (!error.toString().includes("-32601")) {
+            if (error.message) {
+              return callback(error.message)
+            }
+            callback(error)
+          }
+        })
+        .catch((error) => {
+          if (!error.toString().includes("-32601")) {
+            if (error.message) {
+              return callback(error.message)
+            }
+            callback(error)
+          }
+        })
+    } else {
+      return emitter.emit(ERROR, "Not enough USDT balance.");
+    }
+
+  }
+
+  _callDrawWinner = async (asset, account, callback) => {
+    const web3 = new Web3(store.getStore('web3context').library.provider);
+    const lotteryContract = new web3.eth.Contract(asset.rewardsABI, asset.rewardsAddress)
+    lotteryContract.methods.drawWinner().send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
+      .on('transactionHash', function (hash) {
         console.log(hash)
         callback(null, hash)
       })
-      .on('confirmation', function(confirmationNumber, receipt){
+      .on('confirmation', function (confirmationNumber, receipt) {
         console.log(confirmationNumber, receipt);
-        if(confirmationNumber == 2) {
+        if (confirmationNumber == 2) {
           dispatcher.dispatch({ type: GET_BALANCES_PERPETUAL, content: {} })
         }
       })
-      .on('receipt', function(receipt){
+      .on('receipt', function (receipt) {
         console.log(receipt);
       })
-      .on('error', function(error) {
+      .on('error', function (error) {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -750,63 +793,60 @@ class Store {
       })
       .catch((error) => {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
         }
       })
-    } else {
-      return emitter.emit(ERROR, "Not enough USDT balance.");
-    }
-    
   }
+
 
   _callBuyQrx = async (asset, account, callback) => {
     const web3 = new Web3(store.getStore('web3context').library.provider);
     const qrxContract = new web3.eth.Contract(asset.abi, asset.qrxaddress)
     var balance = await qrxContract.methods.balanceOf(account.address).call({ from: account.address });
-    balance = web3.utils.fromWei(balance.toString(),"ether");
+    balance = web3.utils.fromWei(balance.toString(), "ether");
     let response = await this.lookUpPrices(["quiverx"]);
     const qrxusd = response["quiverx"].usd;
     console.log(qrxusd);
     const qrxRequired = 5000 / Number(qrxusd)
     console.log(qrxRequired)
-    if(Number(balance) >= Number(qrxRequired)){
-      qrxContract.methods.transfer(asset.collector,web3.utils.toWei(qrxRequired.toString(),"ether")).send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
-      .on('transactionHash', function(hash){
-        console.log(hash)
-        callback(null, hash)
-      })
-      .on('confirmation', function(confirmationNumber, receipt){
-        console.log(confirmationNumber, receipt);
-        if(confirmationNumber == 2) {
-          dispatcher.dispatch({ type: GET_BALANCES_PERPETUAL, content: {} })
-        }
-      })
-      .on('receipt', function(receipt){
-        console.log(receipt);
-      })
-      .on('error', function(error) {
-        if (!error.toString().includes("-32601")) {
-          if(error.message) {
-            return callback(error.message)
+    if (Number(balance) >= Number(qrxRequired)) {
+      qrxContract.methods.transfer(asset.collector, web3.utils.toWei(qrxRequired.toString(), "ether")).send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
+        .on('transactionHash', function (hash) {
+          console.log(hash)
+          callback(null, hash)
+        })
+        .on('confirmation', function (confirmationNumber, receipt) {
+          console.log(confirmationNumber, receipt);
+          if (confirmationNumber == 2) {
+            dispatcher.dispatch({ type: GET_BALANCES_PERPETUAL, content: {} })
           }
-          callback(error)
-        }
-      })
-      .catch((error) => {
-        if (!error.toString().includes("-32601")) {
-          if(error.message) {
-            return callback(error.message)
+        })
+        .on('receipt', function (receipt) {
+          console.log(receipt);
+        })
+        .on('error', function (error) {
+          if (!error.toString().includes("-32601")) {
+            if (error.message) {
+              return callback(error.message)
+            }
+            callback(error)
           }
-          callback(error)
-        }
-      })
+        })
+        .catch((error) => {
+          if (!error.toString().includes("-32601")) {
+            if (error.message) {
+              return callback(error.message)
+            }
+            callback(error)
+          }
+        })
     } else {
       return emitter.emit(ERROR, "Not enough QRX balance.");
     }
-    
+
   }
   buyQrx = (payload) => {
     const account = store.getStore('account')
@@ -816,13 +856,13 @@ class Store {
     console.log(amount);
 
 
-      this._callBuyQrx(asset, account, (err, res) => {
-        if(err) {
-          return emitter.emit(ERROR, err);
-        }
+    this._callBuyQrx(asset, account, (err, res) => {
+      if (err) {
+        return emitter.emit(ERROR, err);
+      }
 
-        return emitter.emit(STAKE_RETURNED, res)
-      })
+      return emitter.emit(STAKE_RETURNED, res)
+    })
   }
   buyUsdt = (payload) => {
     const account = store.getStore('account')
@@ -831,43 +871,58 @@ class Store {
     console.log(account);
     console.log(amount);
 
-      this._callBuyUsdt(asset, account, (err, res) => {
-        if(err) {
-          return emitter.emit(ERROR, err);
-        }
+    this._callBuyUsdt(asset, account, (err, res) => {
+      if (err) {
+        return emitter.emit(ERROR, err);
+      }
 
-        return emitter.emit(STAKE_RETURNED, res)
-      })
+      return emitter.emit(STAKE_RETURNED, res)
+    })
+  }
+
+  drawWinner = (payload) => {
+    const account = store.getStore('account')
+    const { asset, amount } = payload.content
+    console.log(asset);
+    console.log(account);
+
+    this._callDrawWinner(asset, account, (err, res) => {
+      if (err) {
+        return emitter.emit(ERROR, err);
+      }
+
+      return emitter.emit(STAKE_RETURNED, res)
+    })
   }
 
 
-  _callStake = async (asset, account, amount,referral, callback) => {
+  _callStake = async (asset, account, amount, referral, callback) => {
     const web3 = new Web3(store.getStore('web3context').library.provider);
 
     const yCurveFiContract = new web3.eth.Contract(asset.rewardsABI, asset.rewardsAddress)
 
     var amountToSend = web3.utils.toWei(amount, "ether")
     if (asset.decimals != 18) {
-      amountToSend = (amount*10**asset.decimals).toFixed(0);
+      amountToSend = (amount * 10 ** asset.decimals).toFixed(0);
     }
 
-    yCurveFiContract.methods.deposit(referral).send({ value: amountToSend,from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
-      .on('transactionHash', function(hash){
+    yCurveFiContract.methods.deposit(referral).send({ value: amountToSend, from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
+      .on('transactionHash', function (hash) {
         console.log(hash)
         callback(null, hash)
       })
-      .on('confirmation', function(confirmationNumber, receipt){
+      .on('confirmation', function (confirmationNumber, receipt) {
         console.log(confirmationNumber, receipt);
-        if(confirmationNumber == 2) {
+        if (confirmationNumber == 2) {
           dispatcher.dispatch({ type: GET_BALANCES_PERPETUAL, content: {} })
         }
       })
-      .on('receipt', function(receipt){
+      .on('receipt', function (receipt) {
         console.log(receipt);
       })
-      .on('error', function(error) {
+      .on('error', function (error) {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -875,7 +930,7 @@ class Store {
       })
       .catch((error) => {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -888,7 +943,7 @@ class Store {
     const { asset, amount } = payload.content
 
     this._callWithdraw(asset, account, amount, (err, res) => {
-      if(err) {
+      if (err) {
         return emitter.emit(ERROR, err);
       }
 
@@ -903,26 +958,26 @@ class Store {
 
     var amountToSend = web3.utils.toWei(amount, "ether")
     if (asset.decimals != 18) {
-      amountToSend = (amount*10**asset.decimals).toFixed(0);
+      amountToSend = (amount * 10 ** asset.decimals).toFixed(0);
     }
 
     yCurveFiContract.methods.withdraw(amountToSend).send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
-      .on('transactionHash', function(hash){
+      .on('transactionHash', function (hash) {
         console.log(hash)
         callback(null, hash)
       })
-      .on('confirmation', function(confirmationNumber, receipt){
+      .on('confirmation', function (confirmationNumber, receipt) {
         console.log(confirmationNumber, receipt);
-        if(confirmationNumber == 2) {
+        if (confirmationNumber == 2) {
           dispatcher.dispatch({ type: GET_BALANCES, content: {} })
         }
       })
-      .on('receipt', function(receipt){
+      .on('receipt', function (receipt) {
         console.log(receipt);
       })
-      .on('error', function(error) {
+      .on('error', function (error) {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -930,7 +985,7 @@ class Store {
       })
       .catch((error) => {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -943,7 +998,7 @@ class Store {
     const { asset } = payload.content
 
     this._callGetReward(asset, account, (err, res) => {
-      if(err) {
+      if (err) {
         return emitter.emit(ERROR, err);
       }
 
@@ -957,22 +1012,22 @@ class Store {
     const yCurveFiContract = new web3.eth.Contract(asset.rewardsABI, asset.rewardsAddress)
 
     yCurveFiContract.methods.getReward().send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
-      .on('transactionHash', function(hash){
+      .on('transactionHash', function (hash) {
         console.log(hash)
         callback(null, hash)
       })
-      .on('confirmation', function(confirmationNumber, receipt){
+      .on('confirmation', function (confirmationNumber, receipt) {
         console.log(confirmationNumber, receipt);
-        if(confirmationNumber == 2) {
+        if (confirmationNumber == 2) {
           dispatcher.dispatch({ type: GET_BALANCES, content: {} })
         }
       })
-      .on('receipt', function(receipt){
+      .on('receipt', function (receipt) {
         console.log(receipt);
       })
-      .on('error', function(error) {
+      .on('error', function (error) {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -980,7 +1035,7 @@ class Store {
       })
       .catch((error) => {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -993,7 +1048,7 @@ class Store {
     const { asset } = payload.content
 
     this._callExit(asset, account, (err, res) => {
-      if(err) {
+      if (err) {
         return emitter.emit(ERROR, err);
       }
 
@@ -1007,22 +1062,22 @@ class Store {
     const yCurveFiContract = new web3.eth.Contract(asset.rewardsABI, asset.rewardsAddress)
 
     yCurveFiContract.methods.exit().send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
-      .on('transactionHash', function(hash){
+      .on('transactionHash', function (hash) {
         console.log(hash)
         callback(null, hash)
       })
-      .on('confirmation', function(confirmationNumber, receipt){
+      .on('confirmation', function (confirmationNumber, receipt) {
         console.log(confirmationNumber, receipt);
-        if(confirmationNumber == 2) {
+        if (confirmationNumber == 2) {
           dispatcher.dispatch({ type: GET_BALANCES, content: {} })
         }
       })
-      .on('receipt', function(receipt){
+      .on('receipt', function (receipt) {
         console.log(receipt);
       })
-      .on('error', function(error) {
+      .on('error', function (error) {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -1030,7 +1085,7 @@ class Store {
       })
       .catch((error) => {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -1042,7 +1097,7 @@ class Store {
     const account = store.getStore('account')
 
     this._callPropose(account, (err, res) => {
-      if(err) {
+      if (err) {
         return emitter.emit(ERROR, err);
       }
 
@@ -1056,22 +1111,22 @@ class Store {
     const governanceContract = new web3.eth.Contract(config.governanceABI, config.governanceAddress)
 
     governanceContract.methods.propose().send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
-      .on('transactionHash', function(hash){
+      .on('transactionHash', function (hash) {
         console.log(hash)
         callback(null, hash)
       })
-      .on('confirmation', function(confirmationNumber, receipt){
+      .on('confirmation', function (confirmationNumber, receipt) {
         console.log(confirmationNumber, receipt);
-        if(confirmationNumber == 2) {
+        if (confirmationNumber == 2) {
           dispatcher.dispatch({ type: GET_BALANCES, content: {} })
         }
       })
-      .on('receipt', function(receipt){
+      .on('receipt', function (receipt) {
         console.log(receipt);
       })
-      .on('error', function(error) {
+      .on('error', function (error) {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -1079,7 +1134,7 @@ class Store {
       })
       .catch((error) => {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -1093,20 +1148,20 @@ class Store {
     const web3 = new Web3(store.getStore('web3context').library.provider);
 
     this._getProposalCount(web3, account, (err, proposalCount) => {
-      if(err) {
+      if (err) {
         return emitter.emit(ERROR, err);
       }
 
       let arr = Array.from(Array(parseInt(proposalCount)).keys())
 
-      if(proposalCount == 0) {
+      if (proposalCount == 0) {
         arr = []
       }
 
       async.map(arr, (proposal, callback) => {
         this._getProposals(web3, account, proposal, callback)
       }, (err, proposalsData) => {
-        if(err) {
+        if (err) {
           return emitter.emit(ERROR, err);
         }
 
@@ -1122,7 +1177,7 @@ class Store {
       const governanceContract = new web3.eth.Contract(config.governanceABI, config.governanceAddress)
       var proposals = await governanceContract.methods.proposalCount().call({ from: account.address });
       callback(null, proposals)
-    } catch(ex) {
+    } catch (ex) {
       return callback(ex)
     }
   }
@@ -1132,7 +1187,7 @@ class Store {
       const governanceContract = new web3.eth.Contract(config.governanceABI, config.governanceAddress)
       var proposals = await governanceContract.methods.proposals(number).call({ from: account.address });
       callback(null, proposals)
-    } catch(ex) {
+    } catch (ex) {
       return callback(ex)
     }
   }
@@ -1142,7 +1197,7 @@ class Store {
     const { proposal } = payload.content
 
     this._callVoteFor(proposal, account, (err, res) => {
-      if(err) {
+      if (err) {
         return emitter.emit(ERROR, err);
       }
 
@@ -1156,22 +1211,22 @@ class Store {
     const governanceContract = new web3.eth.Contract(config.governanceABI, config.governanceAddress)
 
     governanceContract.methods.voteFor(proposal.id).send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
-      .on('transactionHash', function(hash){
+      .on('transactionHash', function (hash) {
         console.log(hash)
         callback(null, hash)
       })
-      .on('confirmation', function(confirmationNumber, receipt){
+      .on('confirmation', function (confirmationNumber, receipt) {
         console.log(confirmationNumber, receipt);
-        if(confirmationNumber == 2) {
+        if (confirmationNumber == 2) {
           dispatcher.dispatch({ type: GET_PROPOSALS, content: {} })
         }
       })
-      .on('receipt', function(receipt){
+      .on('receipt', function (receipt) {
         console.log(receipt);
       })
-      .on('error', function(error) {
+      .on('error', function (error) {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -1179,7 +1234,7 @@ class Store {
       })
       .catch((error) => {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -1192,7 +1247,7 @@ class Store {
     const { proposal } = payload.content
 
     this._callVoteAgainst(proposal, account, (err, res) => {
-      if(err) {
+      if (err) {
         return emitter.emit(ERROR, err);
       }
 
@@ -1206,22 +1261,22 @@ class Store {
     const governanceContract = new web3.eth.Contract(config.governanceABI, config.governanceAddress)
 
     governanceContract.methods.voteAgainst(proposal.id).send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
-      .on('transactionHash', function(hash){
+      .on('transactionHash', function (hash) {
         console.log(hash)
         callback(null, hash)
       })
-      .on('confirmation', function(confirmationNumber, receipt){
+      .on('confirmation', function (confirmationNumber, receipt) {
         console.log(confirmationNumber, receipt);
-        if(confirmationNumber == 2) {
+        if (confirmationNumber == 2) {
           dispatcher.dispatch({ type: GET_PROPOSALS, content: {} })
         }
       })
-      .on('receipt', function(receipt){
+      .on('receipt', function (receipt) {
         console.log(receipt);
       })
-      .on('error', function(error) {
+      .on('error', function (error) {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -1229,7 +1284,7 @@ class Store {
       })
       .catch((error) => {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -1247,14 +1302,14 @@ class Store {
       (callbackInnerInner) => { this._getClaimableBalance(web3, asset, account, callbackInnerInner) },
       (callbackInnerInner) => { this._getClaimable(web3, asset, account, callbackInnerInner) },
     ], (err, data) => {
-      if(err) {
+      if (err) {
         return emitter.emit(ERROR, err);
       }
 
       asset.balance = data[0]
       asset.claimableBalance = data[1]
 
-      store.setStore({claimableAsset: asset})
+      store.setStore({ claimableAsset: asset })
       emitter.emit(GET_CLAIMABLE_ASSET_RETURNED)
     })
   }
@@ -1264,9 +1319,9 @@ class Store {
 
     try {
       var balance = await erc20Contract.methods.balanceOf(account.address).call({ from: account.address });
-      balance = parseFloat(balance)/10**asset.decimals
+      balance = parseFloat(balance) / 10 ** asset.decimals
       callback(null, parseFloat(balance))
-    } catch(ex) {
+    } catch (ex) {
       return callback(ex)
     }
   }
@@ -1276,9 +1331,9 @@ class Store {
 
     try {
       var balance = await claimContract.methods.claimable(account.address).call({ from: account.address });
-      balance = parseFloat(balance)/10**asset.decimals
+      balance = parseFloat(balance) / 10 ** asset.decimals
       callback(null, parseFloat(balance))
-    } catch(ex) {
+    } catch (ex) {
       return callback(ex)
     }
   }
@@ -1289,12 +1344,12 @@ class Store {
     const { amount } = payload.content
 
     this._checkApproval(asset, account, amount, config.claimAddress, (err) => {
-      if(err) {
+      if (err) {
         return emitter.emit(ERROR, err);
       }
 
       this._callClaim(asset, account, amount, (err, res) => {
-        if(err) {
+        if (err) {
           return emitter.emit(ERROR, err);
         }
 
@@ -1310,26 +1365,26 @@ class Store {
 
     var amountToSend = web3.utils.toWei(amount, "ether")
     if (asset.decimals != 18) {
-      amountToSend = (amount*10**asset.decimals).toFixed(0);
+      amountToSend = (amount * 10 ** asset.decimals).toFixed(0);
     }
 
     claimContract.methods.claim(amountToSend).send({ from: account.address, gasPrice: web3.utils.toWei(await this._getGasPrice(), 'gwei') })
-      .on('transactionHash', function(hash){
+      .on('transactionHash', function (hash) {
         console.log(hash)
         callback(null, hash)
       })
-      .on('confirmation', function(confirmationNumber, receipt){
+      .on('confirmation', function (confirmationNumber, receipt) {
         console.log(confirmationNumber, receipt);
-        if(confirmationNumber == 2) {
+        if (confirmationNumber == 2) {
           dispatcher.dispatch({ type: GET_CLAIMABLE_ASSET, content: {} })
         }
       })
-      .on('receipt', function(receipt){
+      .on('receipt', function (receipt) {
         console.log(receipt);
       })
-      .on('error', function(error) {
+      .on('error', function (error) {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -1337,7 +1392,7 @@ class Store {
       })
       .catch((error) => {
         if (!error.toString().includes("-32601")) {
-          if(error.message) {
+          if (error.message) {
             return callback(error.message)
           }
           callback(error)
@@ -1355,14 +1410,14 @@ class Store {
       (callbackInnerInner) => { this._getClaimableBalance(web3, asset, account, callbackInnerInner) },
       (callbackInnerInner) => { this._getClaimable(web3, asset, account, callbackInnerInner) },
     ], (err, data) => {
-      if(err) {
+      if (err) {
         return emitter.emit(ERROR, err);
       }
 
       asset.balance = data[0]
       asset.claimableBalance = data[1]
 
-      store.setStore({claimableAsset: asset})
+      store.setStore({ claimableAsset: asset })
       emitter.emit(GET_CLAIMABLE_RETURNED)
     })
   }
@@ -1374,7 +1429,7 @@ class Store {
 
       const governanceContract = new web3.eth.Contract(config.governanceABI, config.governanceAddress)
       let balance = await governanceContract.methods.balanceOf(account.address).call({ from: account.address })
-      balance = parseFloat(balance)/10**18
+      balance = parseFloat(balance) / 10 ** 18
 
       const voteLock = await governanceContract.methods.voteLock(account.address).call({ from: account.address })
       const currentBlock = await web3.eth.getBlockNumber()
@@ -1387,7 +1442,7 @@ class Store {
 
       emitter.emit(GET_YCRV_REQUIREMENTS_RETURNED, returnOBJ)
 
-    } catch(ex) {
+    } catch (ex) {
       return emitter.emit(ERROR, ex);
     }
   }
@@ -1397,11 +1452,11 @@ class Store {
       const url = 'https://gasprice.poa.network/'
       const priceString = await rp(url);
       const priceJSON = JSON.parse(priceString)
-      if(priceJSON) {
+      if (priceJSON) {
         return priceJSON.fast.toFixed(0)
       }
       return store.getStore('universalGasPrice')
-    } catch(e) {
+    } catch (e) {
       console.log(e)
       return store.getStore('universalGasPrice')
     }

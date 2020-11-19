@@ -62,7 +62,7 @@ const styles = (theme) => ({
     marginLeft: "20vw",
     fontWeight: "bold",
     fontSize: "25px",
-    color: "#000 !important",
+    color: "white !important",
     ['@media (max-width:720px)']:{
       marginLeft: 0,
       color:"#fff !important"
@@ -81,7 +81,7 @@ const styles = (theme) => ({
   },
   footerTextRight: {
     fontSize: "16px",
-    color: "black",
+    color: "white",
     marginRight: "20vw",
     fontWeight: "bold",
     valign: "center",
@@ -136,7 +136,7 @@ class Footer extends Component {
               {this.renderRewards()}
             </Typography>
             <Typography className={classes.footerTextRight}>
-              Safe, secure and Easy-To-Use
+              Safe, Secure and Easy-To-Use
             </Typography>
           </div>
         </div>

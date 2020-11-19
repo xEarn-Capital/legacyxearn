@@ -12,7 +12,7 @@ const config = {
   usdttoken:'0xdAC17F958D2ee523a2206206994597C13D831ec7',
   usdctoken:'0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
   uniswapRewardsAddres: '',
-  qrxlotteryaddress:'0xD1e09c9f55Bfcc73eB9E8De15C7936757f37776E',
+  qrxlotteryaddress:'0xd5B5f5b4126Cf33068D9117d2fd4053e7c16e69c',
   qrxlotteryabi:[
     {
       "inputs": [

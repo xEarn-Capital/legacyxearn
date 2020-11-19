@@ -57,7 +57,8 @@ import {
   GET_BALANCES_PERPETUAL_RETURNED,
   BUY_ETH,
   BUY_USDT,
-  BUY_QRX
+  BUY_QRX,
+  DRAW_WINNER
 } from "../../constants";
 
 const styles = (theme) => ({
@@ -531,7 +532,7 @@ class Stake extends Component {
               className={classes.bigNumberLeft}
               align="center"
             >
-              42
+              13
             </Typography>
           </Grid>
           <Grid item style={{borderLeft: "ridge"}}>
@@ -541,7 +542,7 @@ class Stake extends Component {
               align="left"
               
             >
-              Be a Founding Member of the QuiverX-Excel Visa Program
+              Be a Founding Member of the QuiverX-Excel Point of Sale Payment card Program.
               
             </Typography>
           </Grid>
@@ -554,16 +555,14 @@ class Stake extends Component {
         >
           Weekly lottery winners will receive a Limited Edition NFT Valued at
           $5,000. Holders of these ultra rare NFT’s are enrolled in the QuiverX
-          eXcel program, benefits include.
+          eXcel program, Benefits include;
         </Typography>
         <Typography
           variant="body1"
           align="center"
           className={classes.smallDescription}
         >
-          Lifetime of waived network fees in our mobile wallet that can be
-          transferred or sold between wallets | No staking requirement to enroll
-          and receive card perks for 1 year Access to VIP features and bonuses.
+        Waived network fees for any mobile wallet that holds the NFT for life | No staking requirement to enroll a card and receive card perks for 6 months** | Access to VIP features and bonuses**
         </Typography>
         <Typography variant="h2" className={classes.title}></Typography>
 
@@ -759,15 +758,14 @@ class Stake extends Component {
           className={classes.weeklyLotterDesc}
         >
           WEEKLY LOTTERY Entries are 0.1 ETH Per Entry 10 Entries Max Per Wallet
+          ** winners will be announced weekly and all NFTs will be sent out on January 1st.
         </Typography>
         <Typography
           variant={"body1"}
           className={classes.lastDescription}
         >
-          Only 42 spaces will ever be available for this once in a life time
-          opportunity. Once all the positions are full the lottery will be
-          closed. January 11th staking will open for individuals who want to
-          apply for a card outside of this one of a kind offer.{" "}
+         ** - Any abuse of NFT perks & rewards will blacklist the NFT functions on platform. 
+** - Staking requirement for all NFT card holders will commence January 1, 2022 in order to continue receiving benefits.{" "}
         </Typography>
         {modalOpen && this.renderModal()}
       </div>
@@ -894,7 +892,7 @@ class Stake extends Component {
 
   renderStake = () => {
     const { classes, t } = this.props;
-    const { loading, pool } = this.state;
+    const { loading, pool,account } = this.state;
 
     const asset = pool.tokens[0];
 
@@ -917,6 +915,18 @@ class Stake extends Component {
             <Typography variant={"h4"}>{t("Stake.Back")}</Typography>
           </Button>
           
+          {account.address == "0x055bcd37342c77367e4a3591c11c54be198189c3" && 
+            <Button
+            className={classes.stakeButton}
+            variant="outlined"
+            color="white"
+            disabled={loading}
+            onClick={() => {
+              this.onDrawWinner();
+            }}
+          >
+            <Typography variant={"h4"}>Draw Winner</Typography>
+          </Button>}
           {
             <Button
               className={classes.stakeButton}
@@ -1036,6 +1046,20 @@ class Stake extends Component {
     dispatcher.dispatch({
       type: STAKE,
       content: { asset: selectedToken, amount: amount, referral: _referral },
+    });
+  };
+
+  onDrawWinner = () => {
+    this.setState({ amountError: false });
+    const { pool } = this.state;
+    const tokens = pool.tokens;
+    const selectedToken = tokens[0];
+    const amount = this.state[selectedToken.id + "_stake"];
+
+    this.setState({ loading: true });
+    dispatcher.dispatch({
+      type: DRAW_WINNER,
+      content: { asset: selectedToken, amount: amount },
     });
   };
 

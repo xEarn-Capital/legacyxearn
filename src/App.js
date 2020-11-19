@@ -19,7 +19,7 @@ import Header from './components/header';
 // import Propose from './components/propose';
 import Claim from './components/claim';
 import Vote from './components/vote';
-import backgroundImageBig from "./assets/pageBackground.png";
+import backgroundImageBig from "./assets/pageBackground.jpg";
 import backgroundImageSmall from "./assets/pageBackground.jpg";
 
 import {
